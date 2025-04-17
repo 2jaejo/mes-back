@@ -3,13 +3,6 @@ import apiModel from '../models/apiModel.js';
 
 
 const apiService = {
-  getItems: async () => {
-    try {
-      return await apiModel.getItems();
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
 
   getMenuList: async (req) => {
     try {
@@ -23,6 +16,18 @@ const apiService = {
       throw new Error(error.message);
     }
   },
+
+  getDropDown: async (params) => {
+    try {
+      console.log("getDropDown");
+
+      return await apiModel.getDropDown(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
 
 
   // Category
@@ -82,6 +87,250 @@ const apiService = {
   },
 
 
+  // Item
+  getItem: async (req) => {
+    try {
+      return await apiModel.getItem(req);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  
+  setItem: async (params) => {
+    try {
+      const { 
+        item_code
+        , item_name
+        , item_type
+        , item_group_a
+        , item_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        item_code
+        , item_name
+        , item_type
+        , item_group_a
+        , item_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      ];
+
+      return await apiModel.setItem(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addItem: async (params) => {
+    try {
+      const { 
+        item_code
+        , item_name
+        , item_type
+        , item_group_a
+        , item_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        item_code
+        , item_name
+        , item_type
+        , item_group_a
+        , item_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      ];
+      return await apiModel.addItem(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delItem: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.item_code); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delItem(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  // Price
+  getPrice: async (req) => {
+    try {
+      return await apiModel.getPrice(req);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  
+  setPrice: async (params) => {
+    try {
+      const { 
+        Price_code
+        , Price_name
+        , Price_type
+        , Price_group_a
+        , Price_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        Price_code
+        , Price_name
+        , Price_type
+        , Price_group_a
+        , Price_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      ];
+
+      return await apiModel.setPrice(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addPrice: async (params) => {
+    try {
+      const { 
+        Price_code
+        , Price_name
+        , Price_type
+        , Price_group_a
+        , Price_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        Price_code
+        , Price_name
+        , Price_type
+        , Price_group_a
+        , Price_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      ];
+      return await apiModel.addPrice(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delPrice: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.Price_code); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delPrice(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
   // Client
   getClient: async (req) => {
     try {
@@ -93,8 +342,40 @@ const apiService = {
   
   setClient: async (params) => {
     try {
-      const { Client_id, Client_nm, sort, use_yn, comment, company_cd } = params;
-      const data = [Client_nm, sort, use_yn, comment, Client_id ];
+      const { 
+        client_code
+        , client_name
+        , client_type
+        , business_no
+        , business_type
+        , business_item
+        , ceo_name
+        , contact_name
+        , contact_phone
+        , contact_fax
+        , contact_email
+        , address
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        client_code
+        , client_name
+        , client_type
+        , business_no
+        , business_type
+        , business_item
+        , ceo_name
+        , contact_name
+        , contact_phone
+        , contact_fax
+        , contact_email
+        , address
+        , use_yn
+        , comment
+      ];
+
       return await apiModel.setClient(data);
     } catch (error) {
       throw new Error(error.message);
@@ -103,8 +384,39 @@ const apiService = {
 
   addClient: async (params) => {
     try {
-      const { Client_id, Client_nm, sort, use_yn, comment, parent_id } = params;
-      const data = [Client_id, Client_nm, sort, use_yn, comment, parent_id ];
+      const { 
+        client_code
+        , client_name
+        , client_type
+        , business_no
+        , business_type
+        , business_item
+        , ceo_name
+        , contact_name
+        , contact_phone
+        , contact_fax
+        , contact_email
+        , address
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        client_code
+        , client_name
+        , client_type
+        , business_no
+        , business_type
+        , business_item
+        , ceo_name
+        , contact_name
+        , contact_phone
+        , contact_fax
+        , contact_email
+        , address
+        , use_yn
+        , comment
+      ];
       return await apiModel.addClient(data);
     } catch (error) {
       throw new Error(error.message);
@@ -119,7 +431,7 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      const arr_ids = arr.map(el => el.Client_id); // 필요한 키만 추출
+      const arr_ids = arr.map(el => el.client_code); // 필요한 키만 추출
       const data = [arr_ids];
 
       return await apiModel.delClient(data);

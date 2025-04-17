@@ -2,21 +2,21 @@ import { get } from 'mongoose';
 import apiService from '../services/apiService.js';
 
 const itemController = {
-  getItems: async (req, res) => {
-    try {
-      const sql = req.query;
-      
-      const result = await apiService.getItems();
-      res.status(200).json(result);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  },
 
   getMenuList: async (req, res) => {
     try {
       
       const result = await apiService.getMenuList(req);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+  
+  getDropDown: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.getDropDown(data);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -76,6 +76,91 @@ const itemController = {
   },
 
 
+  // item
+  getItem: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getItem(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setItem: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setItem(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addItem: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addItem(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delItem: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delItem(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+
+  // price
+  getPrice: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getPrice(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setPrice: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setPrice(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addPrice: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addPrice(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delPrice: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delPrice(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  
+
   // Client
   getClient: async (req, res) => {
     try {      
@@ -116,6 +201,8 @@ const itemController = {
       res.status(400).json({ message: error.message });
     }
   },
+
+
 
   // Code
   getCodeMst: async (req, res) => {

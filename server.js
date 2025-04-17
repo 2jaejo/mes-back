@@ -1,12 +1,3 @@
-// const express = require("express");
-// const cors = require("cors");
-// const cookieParser = require('cookie-parser');
-// const bodyParser = require("body-parser");
-// const PORT = require('./config/serverConfig').DEFAULT_PORT;
-// // import WebSocket from 'ws';
-// const authenticateToken = require('./utils/authToken');
-// const WebSocketManager = require('./utils/webSocketManager');
-// // const OPCUAClientModule = require('./utils/opcuaClientModule');
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -18,14 +9,9 @@ import WebSocketManager from './utils/webSocketManager.js';
 import OPCUAClientModule from './utils/opcuaClientModule.js';  
 
 // 라우트 연결
-// const indexRouter = require('./routes/index');
-// const loginRouter = require('./routes/login');
-// const userRouter = require('./routes/user');
-// const itemRouter = require('./routes/item');
 import indexRouter from './routes/index.js';
 import loginRouter from './routes/login.js';
 import userRouter from './routes/user.js';
-import itemRouter from './routes/item.js';
 import apiRouter from './routes/api.js';
 
 const app = express();
@@ -38,12 +24,14 @@ app.use(cors({
 app.use(cookieParser());
 app.use(bodyParser.json()); // JSON 요청 본문 파싱
 app.use(bodyParser.urlencoded({ extended: true })); // URL-encoded 요청 본문 파싱
+
+// 인증 제외
 app.use(authenticateToken.unless({
   path: [
     { url: '/auth/login', methods: ['POST'] }, 
     { url: '/auth/join', methods: ['POST'] },
   ]
-})); // 인증 제외
+})); 
 
 // 서버 실행
 const server = app.listen(PORT, () => {
@@ -57,7 +45,6 @@ const server = app.listen(PORT, () => {
 app.use('/', indexRouter);
 app.use('/auth', loginRouter);
 app.use('/users', userRouter);
-app.use('/api/items', itemRouter);
 app.use('/api', apiRouter);
 
 
