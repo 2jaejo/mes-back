@@ -25,6 +25,7 @@ router.post('/delItem', apiController.delItem);
 
 // price
 router.post('/getPrice', apiController.getPrice);
+router.post('/getPriceHistory', apiController.getPriceHistory);
 router.post('/setPrice', apiController.setPrice);
 router.post('/addPrice', apiController.addPrice);
 router.post('/delPrice', apiController.delPrice);
@@ -35,6 +36,17 @@ router.post('/getClient', apiController.getClient);
 router.post('/setClient', apiController.setClient);
 router.post('/addClient', apiController.addClient);
 router.post('/delClient', apiController.delClient);
+
+
+// equipment
+router.post('/getEquipment', apiController.getEquipment);
+router.post('/setEquipment', apiController.setEquipment);
+router.post('/addEquipment', apiController.addEquipment);
+router.post('/delEquipment', apiController.delEquipment);
+
+
+
+
 
 
 // code

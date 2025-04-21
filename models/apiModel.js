@@ -381,63 +381,70 @@ const apiModel = {
   // Price
   getPrice: async (params) => {
     try {
-      const { Price_type, Price_group_a, Price_group_b, use_yn, Price_code, Price_name, client_code, client_name } = params;
-      const data = [];
+      let query = `
+        SELECT DISTINCT ON (t1.item_code, t1.quantity_min, t1.quantity_max)
+          t1.idx
+          , t1.price_id
+          , t1.item_code
+          , t2.item_name 
+          , t1.client_code
+          , t1.contract_id
+          , t1.quantity_min
+          , t1.quantity_max
+          , t1.price
+          , t1.discount_rate
+          , t1.currency
+          , TO_CHAR(t1.start_date, 'YYYY-MM-DD') AS start_date
+          , TO_CHAR(t1.end_date, 'YYYY-MM-DD') AS end_date
+          , t1.use_yn
+          , t1.comment
+          , t1.created_at
+          , t1.updated_at 
+        FROM tb_Price t1
+        left join tb_item t2 on t1.item_code = t2.item_code 
+        WHERE t1.use_yn = 'Y'
+        AND t1.client_code = $1 
+        AND t1.start_date <= CURRENT_DATE
+        AND (t1.end_date IS NULL OR t1.end_date >= CURRENT_DATE)
+        ORDER by t1.item_code, t1.quantity_min, t1.quantity_max, t1.idx, t1.start_date desc
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
 
-      let query = `SELECT * FROM tb_Price WHERE 1=1`;
-      let idx = 1;
-      
-      // Price_type 조건
-      if (Price_type !== '') {
-        query += ` AND Price_type = $${idx++}`;
-        data.push(Price_type);
-      }
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
-      // Price_group_a 조건
-      if (Price_group_a !== '') {
-        query += ` AND Price_group_a = $${idx++}`;
-        data.push(Price_group_a);
-      }
-
-      // Price_group_b 조건
-      if (Price_group_b !== '') {
-        query += ` AND Price_group_b = $${idx++}`;
-        data.push(Price_group_b);
-      }
-
-      // use_yn 조건
-      if (use_yn !== '') {
-        query += ` AND use_yn = $${idx++}`;
-        data.push(use_yn);
-      }
-
-      // Price_code 조건
-      if (Price_code !== '') {
-        query += ` AND Price_code ILIKE $${idx++}`;
-        data.push(`%${Price_code}%`);
-      }
-
-      // Price_name 조건
-      if (Price_name !== '') {
-        query += ` AND Price_name ILIKE $${idx++}`;
-        data.push(`%${Price_name}%`);
-      }
-
-      // client_code 조건
-      if (client_code !== '') {
-        query += ` AND client_code ILIKE $${idx++}`;
-        data.push(`%${client_code}%`);
-      }
-
-      // client_name 조건
-      if (client_name !== '') {
-        query += ` AND client_name ILIKE $${idx++}`;
-        data.push(`%${client_name}%`);
-      }
-
-      query += ` ORDER BY Price_code asc`;
-
-      const result = await pool.query(query, data);
+  getPriceHistory: async (params) => {
+    try {
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.price_id
+          , t1.item_code
+          , t2.item_name 
+          , t1.client_code
+          , t1.contract_id
+          , t1.quantity_min
+          , t1.quantity_max
+          , t1.price
+          , t1.discount_rate
+          , t1.currency
+          , TO_CHAR(t1.start_date, 'YYYY-MM-DD') AS start_date
+          , TO_CHAR(t1.end_date, 'YYYY-MM-DD') AS end_date
+          , t1.use_yn
+          , t1.comment
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_Price t1
+        left join tb_item t2 on t1.item_code = t2.item_code 
+        WHERE t1.use_yn = 'Y'
+        AND t1.item_code = $1 
+        AND t1.client_code = $2 
+        ORDER by t1.start_date desc
+      `;
+      const result = await pool.query(query, params);
       return result.rows; 
 
     } catch (error) {
@@ -449,24 +456,15 @@ const apiModel = {
     try {
       const query = `
         UPDATE tb_Price SET 
-          Price_name= $2
-          , Price_type= $3
-          , Price_group_a= $4
-          , Price_group_b= $5
-          , base_unit= $6
-          , purchase_unit= $7
-          , default_warehouse= $8
-          , inspection_method= $9
-          , incoming_inspection= $10
-          , outgoing_inspection= $11
-          , standard_price= $12
-          , shelf_life_days= $13
-          , shelf_life_managed= $14
-          , lot_managed= $15
-          , use_yn= $16
-          , comment= $17
+          quantity_min = $2
+          , quantity_max = $3
+          , price = $4
+          , discount_rate = $5
+          , start_date = $6
+          , end_date = $7
+          , comment = $8
           , updated_at=now()
-        WHERE Price_code = $1
+        WHERE idx = $1
         RETURNING *
       `;
       const result = await pool.query(query, params);
@@ -533,8 +531,10 @@ const apiModel = {
   delPrice: async (params) => {
     try {
       const query = `
-        DELETE FROM tb_Price
-        WHERE Price_code = ANY($1::text[])
+        UPDATE tb_Price SET 
+          use_yn= 'N'
+          , updated_at=now()
+        WHERE idx = ANY($1::int[])
         RETURNING *
       `;
       const result = await pool.query(query, params);
@@ -557,25 +557,25 @@ const apiModel = {
       let idx = 1;
       
       // client_code 조건
-      if (client_code !== '') {
+      if (client_code !== '' && client_code !== undefined) {
         query += ` AND client_code ILIKE $${idx++}`;
         data.push(`%${client_code}%`);
       }
 
       // client_name 조건
-      if (client_name !== '') {
+      if (client_name !== '' && client_name !== undefined) {
         query += ` AND client_name ILIKE $${idx++}`;
         data.push(`%${client_name}%`);
       }
 
       // client_type 조건
-      if (client_type !== '') {
+      if (client_type !== '' && client_type !== undefined) {
         query += ` AND client_type = $${idx++}`;
         data.push(client_type);
       }
 
       // use_yn 조건
-      if (use_yn !== '') {
+      if (use_yn !== '' && use_yn !== undefined) {
         query += ` AND use_yn = $${idx++}`;
         data.push(use_yn);
       }
@@ -671,7 +671,7 @@ const apiModel = {
   delClient: async (params) => {
     try {
       const query = `
-        DELETE FROM tb_Client
+        DELETE FROM tb_client
         WHERE client_code = ANY($1::text[])
         RETURNING *
       `;
@@ -682,6 +682,157 @@ const apiModel = {
     }
     
   },
+
+
+  // Equipment
+  getEquipment: async (params) => {
+    try {
+      const { equipment_type, equipment_code, equipment_name, use_yn } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          idx
+          , equipment_id
+          , equipment_code
+          , equipment_name
+          , equipment_type
+          , manufacturer
+          , model
+          , TO_CHAR(install_date, 'YYYY-MM-DD') AS install_date
+          , location
+          , status
+          , use_yn
+          , TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_equipment
+        WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // equipment_code 조건
+      if (equipment_code !== '') {
+        query += ` AND equipment_code ILIKE $${idx++}`;
+        data.push(`%${equipment_code}%`);
+      }
+
+      // equipment_name 조건
+      if (equipment_name !== '') {
+        query += ` AND equipment_name ILIKE $${idx++}`;
+        data.push(`%${equipment_name}%`);
+      }
+
+      // equipment_type 조건
+      if (equipment_type !== '') {
+        query += ` AND equipment_type = $${idx++}`;
+        data.push(equipment_type);
+      }
+
+      // use_yn 조건
+      if (use_yn !== '') {
+        query += ` AND use_yn = $${idx++}`;
+        data.push(use_yn);
+      }
+
+      query += ` ORDER BY equipment_code asc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setEquipment: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_equipment SET 
+          location = $2
+          , status = $3
+          , install_date = $4
+          , use_yn = $5
+          , comment = $6
+          , updated_at=now()
+        WHERE equipment_code = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addEquipment: async (params) => {
+    try {
+
+      const query = `
+        INSERT INTO tb_equipment (
+          equipment_code
+          , equipment_name
+          , equipment_type
+          , equipment_group_a
+          , equipment_group_b
+          , base_unit
+          , purchase_unit
+          , default_warehouse
+          , inspection_method
+          , incoming_inspection
+          , outgoing_inspection
+          , standard_price
+          , shelf_life_days
+          , shelf_life_managed
+          , lot_managed
+          , use_yn
+          , comment
+          , created_at
+          , updated_at
+        ) values (
+          $1
+          , $2
+          , $3
+          , $4
+          , $5
+          , $6
+          , $7
+          , $8
+          , $9
+          , $10
+          , $11
+          , $12
+          , $13
+          , $14
+          , $15
+          , $16
+          , $17
+          , now()
+          , now()
+        )
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delEquipment: async (params) => {
+    try {
+      const query = `
+        DELETE FROM tb_equipment
+        WHERE equipment_code = ANY($1::text[])
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+    
+  },
+  
 
   
   // Code

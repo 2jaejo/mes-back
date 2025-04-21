@@ -1,4 +1,4 @@
-import { get } from 'mongoose';
+import { get, set } from 'mongoose';
 import apiModel from '../models/apiModel.js';
 
 
@@ -210,9 +210,21 @@ const apiService = {
 
 
   // Price
-  getPrice: async (req) => {
+  getPrice: async (params) => {
     try {
-      return await apiModel.getPrice(req);
+      const { client_code } = params;
+      const data = [client_code]; 
+      return await apiModel.getPrice(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getPriceHistory: async (params) => {
+    try {
+      const { item_code, client_code } = params;
+      const data = [item_code, client_code]; 
+      return await apiModel.getPriceHistory(data);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -221,42 +233,24 @@ const apiService = {
   setPrice: async (params) => {
     try {
       const { 
-        Price_code
-        , Price_name
-        , Price_type
-        , Price_group_a
-        , Price_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
-        , use_yn
+        idx
+        , quantity_min
+        , quantity_max
+        , price
+        , discount_rate
+        , start_date
+        , end_date
         , comment
       } = params;
 
       const data = [
-        Price_code
-        , Price_name
-        , Price_type
-        , Price_group_a
-        , Price_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
-        , use_yn
+        idx
+        , quantity_min
+        , quantity_max
+        , price
+        , discount_rate
+        , start_date
+        , end_date
         , comment
       ];
 
@@ -321,7 +315,7 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      const arr_ids = arr.map(el => el.Price_code); // 필요한 키만 추출
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
       const data = [arr_ids];
 
       return await apiModel.delPrice(data);
@@ -435,6 +429,112 @@ const apiService = {
       const data = [arr_ids];
 
       return await apiModel.delClient(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+
+  // Equipment
+  getEquipment: async (req) => {
+    try {
+      return await apiModel.getEquipment(req);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setEquipment: async (params) => {
+    try {
+      const { 
+        equipment_id
+        , equipment_code
+        , equipment_name
+        , equipment_type
+        , manufacturer
+        , model
+        , location
+        , status
+        , install_date
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        equipment_code
+        , location
+        , status
+        , install_date
+        , use_yn
+        , comment
+      ];
+
+      return await apiModel.setEquipment(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addEquipment: async (params) => {
+    try {
+      const { 
+        equipment_code
+        , equipment_name
+        , equipment_type
+        , equipment_group_a
+        , equipment_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        equipment_code
+        , equipment_name
+        , equipment_type
+        , equipment_group_a
+        , equipment_group_b
+        , base_unit
+        , purchase_unit
+        , default_warehouse
+        , inspection_method
+        , incoming_inspection
+        , outgoing_inspection
+        , standard_price
+        , shelf_life_days
+        , shelf_life_managed
+        , lot_managed
+        , use_yn
+        , comment
+      ];
+      return await apiModel.addEquipment(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delEquipment: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.equipment_code); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delEquipment(data);
     } catch (error) {
       throw new Error(error.message);
     }

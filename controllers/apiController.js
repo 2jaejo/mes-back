@@ -129,6 +129,16 @@ const itemController = {
     }
   },
 
+  getPriceHistory: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getPriceHistory(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
   setPrice: async (req, res) => {
     try {      
       const data = req.body;
@@ -159,7 +169,7 @@ const itemController = {
     }
   },
 
-  
+
 
   // Client
   getClient: async (req, res) => {
@@ -201,6 +211,50 @@ const itemController = {
       res.status(400).json({ message: error.message });
     }
   },
+
+
+
+  // Equipment
+  getEquipment: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getEquipment(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setEquipment: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setEquipment(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addEquipment: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addEquipment(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delEquipment: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delEquipment(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+,
 
 
 
