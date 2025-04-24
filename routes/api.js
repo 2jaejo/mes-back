@@ -45,7 +45,18 @@ router.post('/addEquipment', apiController.addEquipment);
 router.post('/delEquipment', apiController.delEquipment);
 
 
+// equipmentCheck
+router.post('/getEquipmentCheck', apiController.getEquipmentCheck);
+router.post('/setEquipmentCheck', apiController.setEquipmentCheck);
+router.post('/addEquipmentCheck', apiController.addEquipmentCheck);
+router.post('/delEquipmentCheck', apiController.delEquipmentCheck);
 
+
+// Process
+router.post('/getProcess', apiController.getProcess);
+router.post('/setProcess', apiController.setProcess);
+router.post('/addProcess', apiController.addProcess);
+router.post('/delProcess', apiController.delProcess);
 
 
 

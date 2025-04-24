@@ -482,18 +482,11 @@ const apiService = {
         equipment_code
         , equipment_name
         , equipment_type
-        , equipment_group_a
-        , equipment_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
+        , manufacturer
+        , model
+        , install_date
+        , location
+        , status
         , use_yn
         , comment
       } = params;
@@ -502,18 +495,11 @@ const apiService = {
         equipment_code
         , equipment_name
         , equipment_type
-        , equipment_group_a
-        , equipment_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
+        , manufacturer
+        , model
+        , install_date
+        , location
+        , status
         , use_yn
         , comment
       ];
@@ -525,7 +511,7 @@ const apiService = {
 
   delEquipment: async (params) => {
     try {
-      const arr = params;
+      const {arr} = params;
 
       if (!Array.isArray(arr)) {
         return res.status(400).json({ message: '배열이 필요합니다.' });
@@ -535,6 +521,161 @@ const apiService = {
       const data = [arr_ids];
 
       return await apiModel.delEquipment(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  // EquipmentCheck
+  getEquipmentCheck: async (params) => {
+    try {
+      const { equipment_code } = params;
+      const data = [equipment_code];
+
+      return await apiModel.getEquipmentCheck(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setEquipmentCheck: async (params) => {
+    try {
+      const { 
+        check_code
+        , method
+        , standard
+        , cycle
+        , comment
+      } = params;
+
+      const data = [
+        check_code
+        , method
+        , standard
+        , cycle
+        , comment
+      ];
+
+      return await apiModel.setEquipmentCheck(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addEquipmentCheck: async (params) => {
+    try {
+      const { 
+        equipment_code
+        , check_code
+        , check_name
+        , method
+        , standard
+        , cycle
+        , comment
+      } = params;
+
+      const data = [
+        equipment_code
+        , check_code
+        , check_name
+        , method
+        , standard
+        , cycle
+        , comment
+      ];
+      return await apiModel.addEquipmentCheck(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delEquipmentCheck: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.check_code); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delEquipmentCheck(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  // Process
+  getProcess: async (params) => {
+    try {
+      return await apiModel.getProcess(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setProcess: async (params) => {
+    try {
+      const { 
+        process_code
+        , check_yn
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        process_code
+        , check_yn
+        , use_yn
+        , comment
+      ];
+
+      return await apiModel.setProcess(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addProcess: async (params) => {
+    try {
+      const { 
+        process_code
+        , process_name
+        , process_type
+        , check_yn
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        process_code
+        , process_name
+        , process_type
+        , check_yn
+        , use_yn
+        , comment
+      ];
+      return await apiModel.addProcess(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delProcess: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.process_code); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delProcess(data);
     } catch (error) {
       throw new Error(error.message);
     }

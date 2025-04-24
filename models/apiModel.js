@@ -705,6 +705,7 @@ const apiModel = {
           , use_yn
           , TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+          , comment
         FROM tb_equipment
         WHERE 1=1
       `;
@@ -766,30 +767,22 @@ const apiModel = {
 
   addEquipment: async (params) => {
     try {
-
       const query = `
-        INSERT INTO tb_equipment (
-          equipment_code
+        INSERT INTO tb_equipment(
+           equipment_code
           , equipment_name
           , equipment_type
-          , equipment_group_a
-          , equipment_group_b
-          , base_unit
-          , purchase_unit
-          , default_warehouse
-          , inspection_method
-          , incoming_inspection
-          , outgoing_inspection
-          , standard_price
-          , shelf_life_days
-          , shelf_life_managed
-          , lot_managed
+          , manufacturer
+          , model
+          , install_date
+          , "location"
+          , status
           , use_yn
-          , comment
           , created_at
           , updated_at
-        ) values (
-          $1
+          , "comment"
+        )VALUES(
+           $1
           , $2
           , $3
           , $4
@@ -798,16 +791,9 @@ const apiModel = {
           , $7
           , $8
           , $9
+          , CURRENT_TIMESTAMP
+          , CURRENT_TIMESTAMP
           , $10
-          , $11
-          , $12
-          , $13
-          , $14
-          , $15
-          , $16
-          , $17
-          , now()
-          , now()
         )
         RETURNING *
       `;
@@ -823,6 +809,225 @@ const apiModel = {
       const query = `
         DELETE FROM tb_equipment
         WHERE equipment_code = ANY($1::text[])
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+    
+  },
+
+
+  // EquipmentCheck
+  getEquipmentCheck: async (params) => {
+    try {
+      const data = params;
+      let query = `
+        SELECT 
+          idx
+          , equipment_code
+          , check_code
+          , check_name
+          , "method"
+          , standard
+          , "cycle"
+          , "comment"
+          , TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_equipment_check
+        WHERE equipment_code = $1
+        ORDER BY check_code asc
+      `;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setEquipmentCheck: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_equipment_check SET 
+          method = $2
+          , standard = $3
+          , cycle = $4
+          , comment = $5
+          , updated_at=now()
+        WHERE check_code = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addEquipmentCheck: async (params) => {
+    try {
+      const query = `
+        INSERT INTO tb_equipment_check(
+           equipment_code
+          , check_code
+          , check_name
+          , "method"
+          , standard
+          , "cycle"
+          , "comment"
+          , created_at
+          , updated_at
+        ) VALUES (
+           $1
+          , $2
+          , $3
+          , $4
+          , $5
+          , $6
+          , $7
+          , CURRENT_TIMESTAMP
+          , CURRENT_TIMESTAMP
+        )
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delEquipmentCheck: async (params) => {
+    try {
+      const query = `
+        DELETE FROM tb_equipment_check
+        WHERE check_code = ANY($1::text[])
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+    
+  },
+
+
+  // Process
+  getProcess: async (params) => {
+    try {
+ 
+      const { process_type, process_code, process_name, use_yn } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          idx
+          , process_code
+          , process_name
+          , process_type
+          , check_yn
+          , use_yn
+          , "comment"
+          , TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_process
+        WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // process_code 조건
+      if (process_code !== '') {
+        query += ` AND process_code ILIKE $${idx++}`;
+        data.push(`%${process_code}%`);
+      }
+
+      // process_name 조건
+      if (process_name !== '') {
+        query += ` AND process_name ILIKE $${idx++}`;
+        data.push(`%${process_name}%`);
+      }
+
+      // process_type 조건
+      if (process_type !== '') {
+        query += ` AND process_type = $${idx++}`;
+        data.push(process_type);
+      }
+
+      // use_yn 조건
+      if (use_yn !== '') {
+        query += ` AND use_yn = $${idx++}`;
+        data.push(use_yn);
+      }
+
+      query += ` ORDER BY process_code asc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setProcess: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_process SET 
+          check_yn = $2
+          , use_yn = $3
+          , comment = $4
+          , updated_at=now()
+        WHERE process_code = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addProcess: async (params) => {
+    try {
+      const query = `
+        INSERT INTO tb_process(
+          process_code
+          , process_name
+          , process_type
+          , check_yn
+          , use_yn
+          , "comment"
+          , created_at
+          , updated_at
+        ) values (
+           $1
+          , $2
+          , $3
+          , $4
+          , $5
+          , $6
+          , CURRENT_TIMESTAMP
+          , CURRENT_TIMESTAMP
+        )
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delProcess: async (params) => {
+    try {
+      const query = `
+        DELETE FROM tb_process
+        WHERE process_code = ANY($1::text[])
         RETURNING *
       `;
       const result = await pool.query(query, params);

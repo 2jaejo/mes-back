@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>배터리 조립 레시피</title>
+  <script src="https://cdn.jsdelivr.net/npm/konva@9/konva.min.js"></script>
+  <style>
+    #container {
+      margin-top: 10px;
+    }
+
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+    }
+  
+    .toast {
+      background-color: #333;
+      color: #fff;
+      padding: 10px 16px;
+      margin-top: 10px;
+      border-radius: 4px;
+      opacity: 0;
+      transform: translateY(-10px);
+      animation: fadeInOut 2.5s forwards;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <h2>배터리 조립 레시피</h2>
+
+  <select name="holder_type" id="sel-holder-type">
+    <option value="1x1">1 x 1</option>
+    <option value="1x2">1 x 2</option>
+    <option value="2x1">2 x 1</option>
+    <option value="1x3">1 x 3</option>
+    <option value="3x1">3 x 1</option>
+  </select>
+
+  <button onclick="addHolder()">1. 홀더 추가</button>
+  <button onclick="addPin()" disabled>2. 핀 추가</button>
+  <button onclick="addBattery()" disabled>3. 배터리 추가</button>
+  <button onclick="addNickel()" disabled>4. 니켈 추가</button>
+  <button onclick="printData()">데이터 출력</button>
+  
+  <div id="container"></div>
+
+  <script src="index.js"></script>
+</body>
+</html>

@@ -253,8 +253,90 @@ const itemController = {
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
-  }
-,
+  },
+
+
+  // EquipmentCheck
+  getEquipmentCheck: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getEquipmentCheck(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setEquipmentCheck: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setEquipmentCheck(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addEquipmentCheck: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addEquipmentCheck(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delEquipmentCheck: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delEquipmentCheck(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  // Process
+  getProcess: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getProcess(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setProcess: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setProcess(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addProcess: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addProcess(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delProcess: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delProcess(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
 

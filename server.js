@@ -1,5 +1,9 @@
 import express from 'express';
-import cors from 'cors';
+import path from 'path';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import { DEFAULT_PORT } from './config/serverConfig.js';  
@@ -17,6 +21,11 @@ import apiRouter from './routes/api.js';
 const app = express();
 const PORT = DEFAULT_PORT;
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);import cors from 'cors';
+// 정적 파일 제공 (public 폴더 내부의 파일들)
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Middleware 설정
 app.use(cors({
   credentials: true
@@ -28,6 +37,7 @@ app.use(bodyParser.urlencoded({ extended: true })); // URL-encoded 요청 본문
 // 인증 제외
 app.use(authenticateToken.unless({
   path: [
+    { url: '/', methods: ['GET'] }, 
     { url: '/auth/login', methods: ['POST'] }, 
     { url: '/auth/join', methods: ['POST'] },
   ]
