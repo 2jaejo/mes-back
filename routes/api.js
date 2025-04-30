@@ -58,6 +58,20 @@ router.post('/setProcess', apiController.setProcess);
 router.post('/addProcess', apiController.addProcess);
 router.post('/delProcess', apiController.delProcess);
 
+// Router
+router.post('/getRouter', apiController.getRouter);
+router.post('/getRouterStep', apiController.getRouterStep);
+router.post('/setRouter', apiController.setRouter);
+router.post('/setRouterStep', apiController.setRouterStep);
+router.post('/addRouter', apiController.addRouter);
+router.post('/delRouter', apiController.delRouter);
+
+// BOM
+router.post('/getBom', apiController.getBom);
+router.post('/setBom', apiController.setBom);
+router.post('/addBom', apiController.addBom);
+router.post('/delBom', apiController.delBom);
+
 
 
 // code

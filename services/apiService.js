@@ -263,43 +263,13 @@ const apiService = {
   addPrice: async (params) => {
     try {
       const { 
-        Price_code
-        , Price_name
-        , Price_type
-        , Price_group_a
-        , Price_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
-        , use_yn
-        , comment
+        item_code
+        , client_code
       } = params;
 
       const data = [
-        Price_code
-        , Price_name
-        , Price_type
-        , Price_group_a
-        , Price_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
-        , use_yn
-        , comment
+         item_code
+        , client_code
       ];
       return await apiModel.addPrice(data);
     } catch (error) {
@@ -676,6 +646,157 @@ const apiService = {
       const data = [arr_ids];
 
       return await apiModel.delProcess(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  // Router
+  getRouter: async (params) => {
+    try {
+      return await apiModel.getRouter(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getRouterStep: async (params) => {
+    try {
+      return await apiModel.getRouterStep(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setRouter: async (params) => {
+    try {
+      const { 
+        router_code
+        , use_yn
+        , comment
+      } = params;
+
+      const data = [
+        router_code
+        , use_yn
+        , comment
+      ];
+
+      return await apiModel.setRouter(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setRouterStep: async (params) => {
+    try {
+      const { 
+        idx
+        , expected_time_min
+        , is_optional
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , expected_time_min
+        , is_optional
+        , comment
+      ];
+
+      return await apiModel.setRouterStep(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addRouter: async (params) => {
+    try {
+      return await apiModel.addRouter(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delRouter: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.router_code); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delRouter(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  // Bom
+  getBom: async (params) => {
+    try {
+      return await apiModel.getBom(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setBom: async (params) => {
+    try {
+      const { 
+        idx
+        , quantity
+        , unit
+        , sort
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , quantity
+        , unit
+        , sort
+        , comment
+      ];
+
+      return await apiModel.setBom(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addBom: async (params) => {
+    try {
+      const { 
+        item_code
+        , material_code
+      } = params;
+
+      const data = [
+        item_code
+        , material_code
+      ];
+      return await apiModel.addBom(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delBom: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delBom(data);
     } catch (error) {
       throw new Error(error.message);
     }

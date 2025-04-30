@@ -339,6 +339,108 @@ const itemController = {
   },
 
 
+  // Router
+  getRouter: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getRouter(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+  getRouterStep: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getRouterStep(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setRouter: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setRouter(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setRouterStep: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setRouterStep(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addRouter: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addRouter(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delRouter: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delRouter(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  // Bom
+  getBom: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getBom(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setBom: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setBom(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addBom: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addBom(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delBom: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delBom(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+
 
   // Code
   getCodeMst: async (req, res) => {
