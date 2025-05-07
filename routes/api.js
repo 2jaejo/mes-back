@@ -8,6 +8,12 @@ router.get('/getMenuList', apiController.getMenuList);
 
 router.post('/getDropDown', apiController.getDropDown);
 
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//기준정보관리
+
+
 // category
 router.post('/getCategoryMst', apiController.getCategoryMst);
 router.post('/getCategoryDet', apiController.getCategoryDet);
@@ -83,6 +89,34 @@ router.post('/addCodeMst', apiController.addCodeMst);
 router.post('/addCodeDet', apiController.addCodeDet);
 router.post('/delCodeMst', apiController.delCodeMst);
 router.post('/delCodeDet', apiController.delCodeDet);
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// 자재관리
+
+
+// Order
+router.post('/getOrder', apiController.getOrder);
+router.post('/getOrderDet', apiController.getOrderDet);
+router.post('/setOrder', apiController.setOrder);
+router.post('/setOrderDet', apiController.setOrderDet);
+router.post('/addOrder', apiController.addOrder);
+router.post('/delOrder', apiController.delOrder);
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

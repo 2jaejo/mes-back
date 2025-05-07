@@ -523,7 +523,101 @@ const itemController = {
     }
   },
 
+
+
+
+
+
+
+
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
   
+
+
+
+
+
+  // Order
+  getOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  getOrderDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getOrderDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setOrderDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setOrderDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 export default itemController;

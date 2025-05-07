@@ -103,6 +103,28 @@ const apiModel = {
   },
 
 
+  // prefix + YYMMDD + 다섯자리(updated_at 카운터 + 1)
+  generagteTableId: async (params) =>{
+    try {
+      const {prefix, table_name} = params;
+      const query = `
+        SELECT 
+          '${prefix}' 
+            || TO_CHAR(NOW(), 'YYMMDDHH24MISS') 
+            || LPAD(CAST(EXTRACT(MILLISECONDS FROM NOW()) AS INTEGER)::text, 3, '0') 
+            || '-'
+            || LPAD( (COALESCE(COUNT(*), 0) + 1)::text, 3,'0')  as id
+          FROM ${table_name} 
+          WHERE updated_at::date = CURRENT_DATE 
+      `;
+      const result = await pool.query(query);
+      return result.rows[0]; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
 
   // category
   getCategoryMst: async (params) => {
@@ -1590,6 +1612,311 @@ const apiModel = {
     }
     
   },
+
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+  // Order
+  getOrder: async (params) => {
+    try {
+ 
+      const { start_date, end_date, client_code, client_name, purchase_id} = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.purchase_id
+          , t1.client_code
+          , t2.client_name 
+          , TO_CHAR(t1.request_date, 'YYYY-MM-DD') AS request_date
+          , TO_CHAR(t1.order_date, 'YYYY-MM-DD') AS order_date
+          , t3.supply_price
+          , t3.tax
+          , t3.total_price
+          , t1.status
+          , t1.comment
+          , t1.request_id
+          , t1.created_by
+          , t1.updated_by
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_purchase t1
+        left join tb_client t2 on t1.client_code = t2.client_code
+        left join (
+            select
+                purchase_id 
+                , sum(supply_price) as supply_price
+                , sum(tax) as tax
+                , sum(total_price) as total_price
+            from tb_purchase_det
+            group by purchase_id 
+        )  t3 on t1.purchase_id = t3.purchase_id
+        WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // date 조건
+      if (start_date !== '' && end_date !== '') {
+        query += ` AND t1.request_date BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // client_code 조건
+      if (client_code !== '') {
+        query += ` AND t1.client_code ILIKE $${idx++}`;
+        data.push(`%${client_code}%`);
+      }
+
+      // client_name 조건
+      if (client_name !== '') {
+        query += ` AND t2.client_name ILIKE $${idx++}`;
+        data.push(`%${client_name}%`);
+      }
+
+      // purchase_id 조건
+      if (purchase_id !== '') {
+        query += ` AND t1.purchase_id ILIKE $${idx++}`;
+        data.push(`%${purchase_id}%`);
+      }
+
+
+
+
+      query += ` ORDER BY t1.purchase_id desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  getOrderDet: async (params) => {
+    try {
+      const { purchase_id } = params;
+      const data = [purchase_id];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.purchase_id
+          , t1.item_code
+          , t2.item_name
+          , t2.base_unit 
+          , t2.purchase_unit 
+          , t2.incoming_inspection
+          , t1.quantity
+          , t1.unit_price
+          , t1.received_qty
+          , t1.status
+          , t1.comment
+          , TO_CHAR(t1.due_date, 'YYYY-MM-DD') AS due_date
+          , t1.supply_price
+          , t1.tax
+          , t1.total_price
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_purchase_det t1
+        left join tb_item t2 on t1.item_code = t2.item_code 
+        where purchase_id = $1
+        order by t1.idx asc
+      `;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setOrder: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_purchase SET 
+            status = $2
+          , comment = $3
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setOrderDet: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_purchase_det SET 
+            status = $2
+          ,  received_qty = $3
+          , due_date = $4
+          , comment = $5
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addOrder: async (params) => {
+
+    const client = await pool.connect();
+
+    try {
+
+      const { 
+        purchase_id
+        , client_code
+        , request_date
+        , comment
+        , user_id
+        , status
+        , det_status
+        , sel_row
+      } = params;
+
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+
+      const data = [
+        purchase_id
+        , client_code
+        , request_date
+        , status
+        , comment
+        , user_id
+      ];
+      
+      const query = `
+        INSERT INTO tb_purchase(
+          purchase_id
+          , client_code
+          , request_date
+          , status
+          , comment
+          , request_id
+        ) values (
+          $1
+          , $2
+          , $3
+          , $4
+          , $5
+          , $6
+        )
+        RETURNING *
+      `;
+      const sql1 = await client.query(query, data);
+
+
+      const values = [];
+      const data2 = [];
+    
+      sel_row.forEach((proc, index) => {
+        values.push(
+          `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8})`
+        );
+    
+        data2.push(
+          purchase_id,
+          proc.item_code,
+          proc.quantity,
+          proc.unit_price,
+          det_status,
+          proc.supply_price,
+          proc.tax,
+          proc.total_price,
+        );
+      });
+    
+      const query2 = `
+        INSERT INTO tb_purchase_det(
+          purchase_id
+          , item_code
+          , quantity
+          , unit_price
+          , status
+          , supply_price
+          , tax
+          , total_price
+        ) values ${values.join(', ')}
+        RETURNING *
+      `;
+
+      const sql2 = await client.query(query2, data2);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = {
+        mst: sql1.rows,
+        det: sql2.rows,
+      };
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+  },
+
+  delOrder: async (params) => {
+    const client = await pool.connect();
+
+    try {
+  
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const query = `
+        DELETE FROM tb_Order WHERE idx = ANY($1)
+        RETURNING * 
+      `;
+      const sql1 = await client.query(query, params);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = sql1.rows;
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+    
+  },
+
+
+
 };
 
 export default apiModel;
