@@ -599,14 +599,156 @@ const itemController = {
       res.status(400).json({ message: error.message });
     }
   },
+  
+  
+  
+  // Receipt
+  getReceipt: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getReceipt(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  getReceiptDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getReceiptDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setReceipt: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReceipt(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setReceiptDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReceiptDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setReceiptClose: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReceiptClose(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addReceipt: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addReceipt(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delReceipt: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delReceipt(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
 
 
+  // ReceiptLog
+  getReceiptLog: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getReceiptLog(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
+  // ReceiptReturn
 
+  getReceiptReturn: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getReceiptReturn(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
+  getReceiptReturnDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getReceiptReturnDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setReceiptReturn: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReceiptReturn(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setReceiptReturnDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReceiptReturnDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setReceiptReturnClose: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReceiptReturnClose(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addReceiptReturn: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addReceiptReturn(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
 

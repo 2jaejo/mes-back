@@ -106,9 +106,25 @@ router.post('/addOrder', apiController.addOrder);
 router.post('/delOrder', apiController.delOrder);
 
 
+// Receipt 
+router.post('/getReceipt', apiController.getReceipt);
+router.post('/getReceiptDet', apiController.getReceiptDet);
+router.post('/setReceipt', apiController.setReceipt);
+router.post('/setReceiptDet', apiController.setReceiptDet);
+router.post('/setReceiptClose', apiController.setReceiptClose);
+router.post('/addReceipt', apiController.addReceipt);
+router.post('/delReceipt', apiController.delReceipt);
 
+// ReceiptLog
+router.post('/getReceiptLog', apiController.getReceiptLog);
 
-
+// ReceiptReturn
+router.post('/getReceiptReturn', apiController.getReceiptReturn);
+router.post('/getReceiptReturnDet', apiController.getReceiptReturnDet);
+router.post('/setReceiptReturn', apiController.setReceiptReturn);
+router.post('/setReceiptReturnDet', apiController.setReceiptReturnDet);
+router.post('/setReceiptReturnClose', apiController.setReceiptReturnClose);
+router.post('/addReceiptReturn', apiController.addReceiptReturn);
 
 
 

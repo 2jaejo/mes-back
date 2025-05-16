@@ -75,7 +75,7 @@ const callback = (id, val) => {
   wsm.sensorData[id] = val;
 };
 
-// 구독 리스너 추가
+// // 구독 리스너 추가
 await opcuaClient.addSubscriptionListener('ns=2;i=5', callback);
 await opcuaClient.addSubscriptionListener('ns=2;i=6', callback);
 

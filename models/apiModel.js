@@ -1917,6 +1917,794 @@ const apiModel = {
 
 
 
+
+  // Receipt
+  getReceipt: async (params) => {
+    try {
+ 
+      const { start_date, end_date, client_code, client_name, receipt_id} = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.purchase_id
+          , t1.receipt_id 
+          , TO_CHAR(t1.receipt_date, 'YYYY-MM-DD') AS receipt_date
+          , t1.client_code
+          , t2.client_name 
+          , t3.item_count
+          , t3.supply_price
+          , t3.tax
+          , t3.total_price
+          , t1.status
+          , t1.comment
+          , t1.manager
+          , t1.created_by
+          , t1.updated_by
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_purchase_receipt t1
+        left join tb_client t2 on t1.client_code = t2.client_code
+        left join (
+            select
+                receipt_id 
+                , count(item_code) as item_count
+                , sum(supply_price) as supply_price
+                , sum(tax) as tax
+                , sum(total_price) as total_price
+            from tb_purchase_receipt_det
+            group by receipt_id 
+        )  t3 on t1.receipt_id = t3.receipt_id
+        WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // date 조건
+      if (start_date !== '' && end_date !== '') {
+        query += ` AND t1.request_date BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // client_code 조건
+      if (client_code !== '') {
+        query += ` AND t1.client_code ILIKE $${idx++}`;
+        data.push(`%${client_code}%`);
+      }
+
+      // client_name 조건
+      if (client_name !== '') {
+        query += ` AND t2.client_name ILIKE $${idx++}`;
+        data.push(`%${client_name}%`);
+      }
+
+      // receipt_id 조건
+      if (receipt_id !== '') {
+        query += ` AND t1.receipt_id ILIKE $${idx++}`;
+        data.push(`%${receipt_id}%`);
+      }
+
+
+
+
+      query += ` order BY t1.receipt_id desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  getReceiptDet: async (params) => {
+    try {
+      const { receipt_id } = params;
+      const data = [receipt_id];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.purchase_det_id
+          , t1.receipt_id 
+          , t1.item_code
+          , t2.item_name
+          , t2.base_unit 
+          , t2.purchase_unit 
+          , t2.incoming_inspection
+          , t1.received_qty
+          , t1.status
+          , t1.lot_no 
+          , t1.unit_price
+          , t1.supply_price 
+          , t1.tax 
+          , t1.total_price 
+          , t1.comment
+          , t1.created_by 
+          , t1.updated_by 
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_purchase_receipt_det t1
+        left join tb_item t2 on t1.item_code = t2.item_code 
+        where receipt_id = $1
+        order by t1.idx asc
+      `;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceipt: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_purchase_receipt SET 
+            status = $2
+          , comment = $3
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptDet: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_purchase_receipt_det SET 
+            status = $2
+          , received_qty = $3
+          , comment = $4
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  
+  setReceiptClose: async (params) => {
+    
+    const client = await pool.connect();
+
+    try {
+      const arr = params;
+      const arr_ids = arr.map(el => el.receipt_id); // 필요한 키만 추출
+      const data = [arr_ids];
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+      
+      // const query = `
+      //   UPDATE tb_purchase_receipt_det SET 
+      //       status = 'complete'
+      //     , updated_by = 'test'
+      //     , updated_at=now()
+      //   WHERE receipt_id = ANY($1)
+      //   RETURNING *
+      // `;
+      // const sql1 = await client.query(query, data);
+    
+      const query2 = `
+        UPDATE tb_purchase_receipt_det SET 
+            status = 'complete'
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE receipt_id = ANY($1)
+        RETURNING *
+      `;
+
+      const sql2 = await client.query(query2, data);
+
+
+      const arr_ids2 = arr.map(el => el.idx); // 필요한 키만 추출
+      const data2 = [arr_ids2];
+
+      const query3 = `
+        SELECT update_receipt_stock($1::int[], 'IN')
+      `;
+
+      const sql3 = await client.query(query3, data2);
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = {
+        // mst: sql1.rows,
+        det: sql2.rows,
+        stock: sql3.rows[0].update_receipt_stock,
+      };
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+
+
+  },
+
+  addReceipt: async (params) => {
+
+    const client = await pool.connect();
+
+    try {
+
+      const { 
+        purchase_id
+        , receipt_id
+        , client_code
+        , request_date
+        , comment
+        , user_id
+        , status
+        , det_status
+        , sel_row
+      } = params;
+
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+
+      const data = [
+        purchase_id
+        , receipt_id
+        , client_code
+        , request_date
+        , status
+        , comment
+        , user_id
+      ];
+      
+      const query = `
+        INSERT INTO tb_purchase_receipt(
+          purchase_id
+          , receipt_id
+          , client_code
+          , receipt_date
+          , status
+          , comment
+          , manager
+        ) values (
+          $1
+          , $2
+          , $3
+          , $4
+          , $5
+          , $6
+          , $7
+        )
+        RETURNING *
+      `;
+      const sql1 = await client.query(query, data);
+
+
+      const values = [];
+      const data2 = [];
+    
+      sel_row.forEach((proc, index) => {
+        values.push(
+          `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8})`
+        );
+    
+        data2.push(
+          receipt_id,
+          proc.item_code,
+          proc.quantity,
+          proc.unit_price,
+          det_status,
+          proc.supply_price,
+          proc.tax,
+          proc.total_price,
+        );
+      });
+    
+      const query2 = `
+        INSERT INTO tb_purchase_receipt_det(
+           receipt_id
+          , item_code
+          , received_qty
+          , unit_price
+          , status
+          , supply_price
+          , tax
+          , total_price
+        ) values ${values.join(', ')}
+        RETURNING *
+      `;
+
+      const sql2 = await client.query(query2, data2);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = {
+        mst: sql1.rows,
+        det: sql2.rows,
+      };
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+  },
+
+  delReceipt: async (params) => {
+    const client = await pool.connect();
+
+    try {
+  
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const query = `
+        DELETE FROM tb_purchase_receipt WHERE idx = ANY($1)
+        RETURNING * 
+      `;
+      const sql1 = await client.query(query, params);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = sql1.rows;
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+    
+  },
+
+
+  // ReceiptLog
+  getReceiptLog: async (params) => {
+    try {
+ 
+      const { start_date, end_date, item_code, item_name, receipt_id, change_type} = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+            t1.idx
+            , t1.receipt_id
+            , t1.item_code
+            , t2.item_name 
+            , t1.warehouse_id
+            , t1.lot_no
+            , t1.changed_quantity
+            , t1.change_type
+            , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS receipt_date
+            , t1.created_at
+            , t1.updated_at
+        FROM tb_purchase_stock_log t1 
+        left join tb_item t2 on t1.item_code = t2.item_code
+        WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // date 조건
+      if (start_date !== '' && end_date !== '') {
+        query += ` AND t1.created_at BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // item_code 조건
+      if (item_code !== '') {
+        query += ` AND t1.item_code ILIKE $${idx++}`;
+        data.push(`%${item_code}%`);
+      }
+
+      // item_name 조건
+      if (item_name !== '') {
+        query += ` AND t2.item_name ILIKE $${idx++}`;
+        data.push(`%${item_name}%`);
+      }
+
+      // receipt_id 조건
+      if (receipt_id !== '') {
+        query += ` AND t1.receipt_id ILIKE $${idx++}`;
+        data.push(`%${receipt_id}%`);
+      }
+
+      // change_type 조건
+      if (change_type !== '') {
+        query += ` AND t1.change_type ILIKE $${idx++}`;
+        data.push(`%${change_type}%`);
+      }
+
+
+
+
+      query += ` order BY t1.idx desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+
+
+  // ReceiptReturn
+
+  getReceiptReturn: async (params) => {
+    try {
+ 
+      const { start_date, end_date, client_code, client_name, return_id} = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.return_id
+          , t1.reference_receipt_id 
+          , TO_CHAR(t1.return_date, 'YYYY-MM-DD') AS return_date
+          , t1.client_code
+          , t2.client_name 
+          , t3.item_count
+          , t3.supply_price
+          , t3.tax
+          , t3.total_price
+          , t1.status
+          , t1.comment
+          , t1.manager
+          , t1.created_by
+          , t1.updated_by
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_purchase_return t1
+        left join tb_client t2 on t1.client_code = t2.client_code
+        left join (
+            select
+                return_id 
+                , count(item_code) as item_count
+                , sum(supply_price) as supply_price
+                , sum(tax) as tax
+                , sum(total_price) as total_price
+            from tb_purchase_return_det
+            group by return_id 
+        )  t3 on t1.return_id = t3.return_id
+        WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // date 조건
+      if (start_date !== '' && end_date !== '') {
+        query += ` AND t1.return_date BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // client_code 조건
+      if (client_code !== '') {
+        query += ` AND t1.client_code ILIKE $${idx++}`;
+        data.push(`%${client_code}%`);
+      }
+
+      // client_name 조건
+      if (client_name !== '') {
+        query += ` AND t2.client_name ILIKE $${idx++}`;
+        data.push(`%${client_name}%`);
+      }
+
+      // return_id 조건
+      if (return_id !== '') {
+        query += ` AND t1.return_id ILIKE $${idx++}`;
+        data.push(`%${return_id}%`);
+      }
+
+
+
+
+      query += ` order BY t1.return_id desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  getReceiptReturnDet: async (params) => {
+    try {
+      const { return_id } = params;
+      const data = [return_id];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.return_det_id
+          , t1.return_id 
+          , t1.item_code
+          , t2.item_name
+          , t2.base_unit 
+          , t2.purchase_unit 
+          , t2.incoming_inspection
+          , t1.return_qty
+          , t1.status
+          , t1.lot_no 
+          , t1.unit_price
+          , t1.supply_price 
+          , t1.tax 
+          , t1.total_price 
+          , t1.comment
+          , t1.created_by 
+          , t1.updated_by 
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_purchase_return_det t1
+        left join tb_item t2 on t1.item_code = t2.item_code 
+        where return_id = $1
+        order by t1.idx asc
+      `;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptReturn: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_purchase_return SET 
+            status = $2
+          , comment = $3
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptReturnDet: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_purchase_return_det SET 
+            status = $2
+          , comment = $3
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  
+  setReceiptReturnClose: async (params) => {
+    
+    const client = await pool.connect();
+
+    try {
+      const arr = params;
+      const arr_ids = arr.map(el => el.return_id); // 필요한 키만 추출
+      const data = [arr_ids];
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+      
+      // const query = `
+      //   UPDATE tb_purchase_receipt SET 
+      //       status = 'complete'
+      //     , updated_by = 'test'
+      //     , updated_at=now()
+      //   WHERE receipt_id = ANY($1)
+      //   RETURNING *
+      // `;
+      // const sql1 = await client.query(query, data);
+    
+      const query2 = `
+        UPDATE tb_purchase_return_det SET 
+            status = 'complete'
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE return_id = ANY($1)
+        RETURNING *
+      `;
+
+      const sql2 = await client.query(query2, data);
+
+
+      const arr_ids2 = arr.map(el => el.idx); // 필요한 키만 추출
+      const data2 = [arr_ids2];
+
+      const query3 = `
+        SELECT update_receipt_stock($1::int[], 'OUT')
+      `;
+
+      const sql3 = await client.query(query3, data2);
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = {
+        // mst: sql1.rows,
+        det: sql2.rows,
+        stock: sql3.rows[0].update_receipt_stock,
+      };
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+
+
+  },
+
+  addReceiptReturn: async (params) => {
+
+    const client = await pool.connect();
+
+    try {
+
+      const { 
+        return_id
+        , receipt_id
+        , client_code
+        , request_date
+        , comment
+        , user_id
+        , status
+        , det_status
+        , sel_row
+      } = params;
+
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+
+      const data = [
+        return_id
+        , receipt_id
+        , client_code
+        , request_date
+        , status
+        , comment
+        , user_id
+      ];
+      
+      const query = `
+        INSERT INTO tb_purchase_return(
+          return_id
+          , reference_receipt_id
+          , client_code
+          , return_date
+          , status
+          , comment
+          , manager
+        ) values (
+          $1
+          , $2
+          , $3
+          , $4
+          , $5
+          , $6
+          , $7
+        )
+        RETURNING *
+      `;
+      const sql1 = await client.query(query, data);
+
+
+      const values = [];
+      const data2 = [];
+    
+      sel_row.forEach((proc, index) => {
+        values.push(
+          `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8})`
+        );
+    
+        data2.push(
+          return_id,
+          proc.item_code,
+          proc.quantity,
+          proc.unit_price,
+          det_status,
+          proc.supply_price,
+          proc.tax,
+          proc.total_price,
+        );
+      });
+    
+      const query2 = `
+        INSERT INTO tb_purchase_return_det(
+           return_id
+          , item_code
+          , return_qty
+          , unit_price
+          , status
+          , supply_price
+          , tax
+          , total_price
+        ) values ${values.join(', ')}
+        RETURNING *
+      `;
+
+      const sql2 = await client.query(query2, data2);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = {
+        mst: sql1.rows,
+        det: sql2.rows,
+      };
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+  },
+
+  
+
+
+
 };
 
 export default apiModel;

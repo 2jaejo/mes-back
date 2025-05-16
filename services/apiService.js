@@ -998,6 +998,229 @@ const apiService = {
       throw new Error(error.message);
     }
   },
+  
+  // Receipt
+  getReceipt: async (params) => {
+    try {
+      return await apiModel.getReceipt(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getReceiptDet: async (params) => {
+    try {
+      
+      return await apiModel.getReceiptDet(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceipt: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , comment
+      ];
+
+      return await apiModel.setReceipt(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptDet: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , received_qty
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , received_qty
+        , comment
+      ];
+
+      return await apiModel.setReceiptDet(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptClose: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      return await apiModel.setReceiptClose(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addReceipt: async (params) => {
+    try {
+      const id = await apiModel.generagteTableId({prefix:'RV', table_name:'tb_purchase_receipt'});
+      params.receipt_id = id.id;
+      params.status = 'ready';
+      params.det_status = 'pending';
+      return await apiModel.addReceipt(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delReceipt: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delReceipt(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  
+
+  // ReceiptLog
+  getReceiptLog: async (params) => {
+    try {
+      return await apiModel.getReceiptLog(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+
+  // ReceiptReturn
+  getReceiptReturn: async (params) => {
+    try {
+      return await apiModel.getReceiptReturn(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getReceiptReturnDet: async (params) => {
+    try {
+      
+      return await apiModel.getReceiptReturnDet(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptReturn: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , comment
+      ];
+
+      return await apiModel.setReceiptReturn(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptReturnDet: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , comment
+      ];
+
+      return await apiModel.setReceiptReturnDet(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReceiptReturnClose: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      return await apiModel.setReceiptReturnClose(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addReceiptReturn: async (params) => {
+    try {
+      const id = await apiModel.generagteTableId({prefix:'RT', table_name:'tb_purchase_return'});
+      params.return_id = id.id;
+      params.status = 'ready';
+      params.det_status = 'pending';
+      return await apiModel.addReceiptReturn(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   
