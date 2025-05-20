@@ -1201,10 +1201,166 @@ const apiService = {
 
 
 
+  // Release
+  getRelease: async (params) => {
+    try {
+      return await apiModel.getRelease(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getReleaseDet: async (params) => {
+    try {
+      
+      return await apiModel.getReleaseDet(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setRelease: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , comment
+      ];
+
+      return await apiModel.setRelease(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReleaseDet: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , received_qty
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , received_qty
+        , comment
+      ];
+
+      return await apiModel.setReleaseDet(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addRelease: async (params) => {
+    try {
+      const id = await apiModel.generagteTableId({prefix:'RS', table_name:'tb_purchase_return'});
+      params.release_id = id.id;
+      params.status = 'ready';
+      params.det_status = 'pending';
+      return await apiModel.addRelease(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  
+  delRelease: async (params) => {
+    try {
+      const arr = params;
+      
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+      
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+      
+      return await apiModel.delRelease(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  
+  // ReleaseReturn
+  addReleaseReturn: async (params) => {
+    try {
+      const id = await apiModel.generagteTableId({prefix:'RR', table_name:'tb_purchase_return'});
+      params.releaseReturn_id = id.id;
+      params.status = 'ready';
+      params.det_status = 'pending';
+      return await apiModel.addReleaseReturn(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setReleaseReturn: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , comment
+      ];
+
+      return await apiModel.setReleaseReturn(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
 
+  // Inventory
+  getInventory: async (params) => {
+    try {
+      return await apiModel.getInventory(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
+  getInventoryDet: async (params) => {
+    try {
+      return await apiModel.getInventoryDet(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
+  setInventory: async (params) => {
+    try {
+      const { 
+        idx
+        , quantity
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , quantity
+        , comment
+      ];
+
+      return await apiModel.setInventory(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
 
 

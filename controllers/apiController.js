@@ -689,7 +689,6 @@ const itemController = {
 
 
   // ReceiptReturn
-
   getReceiptReturn: async (req, res) => {
     try {      
       const data = req.body;
@@ -749,11 +748,123 @@ const itemController = {
       res.status(400).json({ message: error.message });
     }
   },
+  
 
 
+  // Release
+  getRelease: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getRelease(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
+  getReleaseDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getReleaseDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
+  setRelease: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setRelease(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
+  setReleaseDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReleaseDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addRelease: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addRelease(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+  
+  
+  delRelease: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delRelease(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+  
+  
+  // ReleaseReturn
+  addReleaseReturn: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addReleaseReturn(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setReleaseReturn: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setReleaseReturn(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  // Inventory
+  getInventory: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getInventory(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  getInventoryDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getInventoryDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setInventory: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setInventory(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
 

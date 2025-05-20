@@ -127,10 +127,23 @@ router.post('/setReceiptReturnClose', apiController.setReceiptReturnClose);
 router.post('/addReceiptReturn', apiController.addReceiptReturn);
 
 
+// Release 
+router.post('/getRelease', apiController.getRelease);
+router.post('/getReleaseDet', apiController.getReleaseDet);
+router.post('/setRelease', apiController.setRelease);
+router.post('/setReleaseDet', apiController.setReleaseDet);
+router.post('/addRelease', apiController.addRelease);
+router.post('/delRelease', apiController.delRelease);
+
+// ReleaseReturn
+router.post('/addReleaseReturn', apiController.addReleaseReturn);
+router.post('/setReleaseReturn', apiController.setReleaseReturn);
 
 
-
-
+// Inventory
+router.post('/getInventory', apiController.getInventory);
+router.post('/getInventoryDet', apiController.getInventoryDet);
+router.post('/setInventory', apiController.setInventory);
 
 
 
