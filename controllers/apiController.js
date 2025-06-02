@@ -267,6 +267,16 @@ const itemController = {
     }
   },
 
+  getEquipmentCheckLog: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getEquipmentCheckLog(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
   setEquipmentCheck: async (req, res) => {
     try {      
       const data = req.body;
@@ -281,6 +291,16 @@ const itemController = {
     try {      
       const data = req.body;
       const result = await apiService.addEquipmentCheck(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addEquipmentCheckLog: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addEquipmentCheckLog(data);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -868,6 +888,66 @@ const itemController = {
 
 
 
+  // SalesOrder
+  getSalesOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getSalesOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  getSalesOrderDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getSalesOrderDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setSalesOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setSalesOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setSalesOrderDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setSalesOrderDet(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addSalesOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addSalesOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delSalesOrder: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delSalesOrder(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
 

@@ -53,8 +53,10 @@ router.post('/delEquipment', apiController.delEquipment);
 
 // equipmentCheck
 router.post('/getEquipmentCheck', apiController.getEquipmentCheck);
+router.post('/getEquipmentCheckLog', apiController.getEquipmentCheckLog);
 router.post('/setEquipmentCheck', apiController.setEquipmentCheck);
 router.post('/addEquipmentCheck', apiController.addEquipmentCheck);
+router.post('/addEquipmentCheckLog', apiController.addEquipmentCheckLog);
 router.post('/delEquipmentCheck', apiController.delEquipmentCheck);
 
 
@@ -147,6 +149,13 @@ router.post('/setInventory', apiController.setInventory);
 
 
 
+// SalesOrder
+router.post('/getSalesOrder', apiController.getSalesOrder);
+router.post('/getSalesOrderDet', apiController.getSalesOrderDet);
+router.post('/setSalesOrder', apiController.setSalesOrder);
+router.post('/setSalesOrderDet', apiController.setSalesOrderDet);
+router.post('/addSalesOrder', apiController.addSalesOrder);
+router.post('/delSalesOrder', apiController.delSalesOrder);
 
 
 export default router;

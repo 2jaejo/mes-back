@@ -134,15 +134,13 @@ const apiModel = {
     try {
       const { category_id, use_yn } = params;
       const data = [];
-      let query = `SELECT * FROM tb_category WHERE 1=1`;
+      let query = `SELECT * FROM tb_category WHERE 1=1 AND parent_id IS NULL`;
       let idx = 1;
 
       // category_id 조건
-      if (category_id === '') {
-        query += ` AND parent_id IS NULL`;
-      } else {
-        query += ` AND category_id = $${idx++}`;
-        data.push(category_id);
+      if (category_id !== '') {
+        query += ` AND category_id ILIKE $${idx++}`;
+        data.push(`%${category_id}%`);
       }
 
       // use_yn 조건
@@ -702,25 +700,25 @@ const apiModel = {
       let idx = 1;
       
       // equipment_code 조건
-      if (equipment_code !== '') {
+      if (equipment_code !== '' && equipment_code !== undefined) {
         query += ` AND equipment_code ILIKE $${idx++}`;
         data.push(`%${equipment_code}%`);
       }
 
       // equipment_name 조건
-      if (equipment_name !== '') {
+      if (equipment_name !== '' && equipment_code !== undefined) {
         query += ` AND equipment_name ILIKE $${idx++}`;
         data.push(`%${equipment_name}%`);
       }
 
       // equipment_type 조건
-      if (equipment_type !== '') {
+      if (equipment_type !== '' && equipment_code !== undefined) {
         query += ` AND equipment_type = $${idx++}`;
         data.push(equipment_type);
       }
 
       // use_yn 조건
-      if (use_yn !== '') {
+      if (use_yn !== '' && equipment_code !== undefined) {
         query += ` AND use_yn = $${idx++}`;
         data.push(use_yn);
       }
@@ -839,6 +837,74 @@ const apiModel = {
     }
   },
 
+  getEquipmentCheckLog: async (params) => {
+    try {
+      const { equipment_type, equipment_code, equipment_name, use_yn } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.equipment_code 
+          , t1.check_result 
+          , t1.created_by 
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , t1.check_code 
+          , t2.check_name 
+          , t2."method" 
+          , t2.standard 
+          , t2."cycle" 
+          , t2."comment" 
+          , t3.equipment_name
+          , t3.equipment_type
+          , t3.manufacturer
+          , t3.model
+          , TO_CHAR(t3.install_date, 'YYYY-MM-DD') AS install_date
+          , t3.location
+          , t3.status
+          , t3.use_yn
+        FROM tb_equipment_check_log t1
+        left join tb_equipment_check t2 on t1.check_code = t2.check_code 
+        left join tb_equipment t3 on t1.equipment_code = t3.equipment_code
+        WHERE 1=1
+      `;
+
+      let idx = 1;
+      
+      // equipment_code 조건
+      if (equipment_code !== '' && equipment_code !== undefined) {
+        query += ` AND t3.equipment_code ILIKE $${idx++}`;
+        data.push(`%${equipment_code}%`);
+      }
+
+      // equipment_name 조건
+      if (equipment_name !== '' && equipment_name !== undefined) {
+        query += ` AND t3.equipment_name ILIKE $${idx++}`;
+        data.push(`%${equipment_name}%`);
+      }
+
+      // equipment_type 조건
+      if (equipment_type !== '' && equipment_type !== undefined) {
+        query += ` AND t3.equipment_type = $${idx++}`;
+        data.push(equipment_type);
+      }
+
+      // use_yn 조건
+      if (use_yn !== '' && use_yn !== undefined) {
+        query += ` AND t3.use_yn = $${idx++}`;
+        data.push(use_yn);
+      }
+
+      query += ` ORDER BY t1.created_at desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   setEquipmentCheck: async (params) => {
     try {
       const query = `
@@ -885,6 +951,39 @@ const apiModel = {
         RETURNING *
       `;
       const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addEquipmentCheckLog: async (params) => {
+    try {
+
+      const values = [];
+      const data = [];
+    
+      params.forEach((el, index) => {
+        values.push(
+          `($${index * 3 + 1}, $${index * 3 + 2}, $${index * 3 + 3})`
+        );
+    
+        data.push(
+          el.equipment_code
+        , el.check_code
+        , el.check_result
+        );
+      });
+
+      const query = `
+        INSERT INTO tb_equipment_check_log(
+           equipment_code
+          , check_code
+          , check_result
+        ) values ${values.join(', ')}
+        RETURNING *
+      `;
+      const result = await pool.query(query, data);
       return result.rows; 
     } catch (error) {
       throw new Error(error.message);
@@ -3168,7 +3267,6 @@ const apiModel = {
         left join tb_item t2 on t1.item_code = t2.item_code
         WHERE 1=1
         and t1.quantity is not null
-        and t1.quantity != 0
       `;
       let idx = 1;
 
@@ -3241,6 +3339,303 @@ const apiModel = {
       throw new Error(error.message);
     }
   },
+
+
+  // SalesOrder
+  getSalesOrder: async (params) => {
+    try {
+ 
+      const { start_date, end_date, client_code, client_name, purchase_id} = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.order_id
+          , t1.client_code
+          , t2.client_name 
+          , TO_CHAR(t1.order_date, 'YYYY-MM-DD') AS order_date
+          , t3.supply_price
+          , t3.tax
+          , t3.total_price
+          , t1.status
+          , t1.comment
+          , t1.created_by
+          , t1.updated_by
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_sales_order t1
+        left join tb_client t2 on t1.client_code = t2.client_code
+        left join (
+            select
+                order_id 
+                , sum(supply_price) as supply_price
+                , sum(tax) as tax
+                , sum(total_price) as total_price
+            from tb_sales_order_det
+            group by order_id 
+        )  t3 on t1.order_id = t3.order_id
+        WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // date 조건
+      if (start_date !== '' && end_date !== '') {
+        query += ` AND t1.request_date BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // client_code 조건
+      if (client_code !== '') {
+        query += ` AND t1.client_code ILIKE $${idx++}`;
+        data.push(`%${client_code}%`);
+      }
+
+      // client_name 조건
+      if (client_name !== '') {
+        query += ` AND t2.client_name ILIKE $${idx++}`;
+        data.push(`%${client_name}%`);
+      }
+
+      // purchase_id 조건
+      if (purchase_id !== '') {
+        query += ` AND t1.order_id ILIKE $${idx++}`;
+        data.push(`%${purchase_id}%`);
+      }
+
+
+
+
+      query += ` ORDER BY t1.order_id desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  getSalesOrderDet: async (params) => {
+    try {
+      const { order_id } = params;
+      const data = [order_id];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.order_id
+          , t1.item_code
+          , t2.item_name
+          , t2.base_unit 
+          , t2.purchase_unit 
+          , t2.incoming_inspection
+          , t1.quantity
+          , t1.unit_price
+          , t1.status
+          , t1.comment
+          , TO_CHAR(t1.due_date, 'YYYY-MM-DD') AS due_date
+          , t1.delivery_qty
+          , t1.supply_price
+          , t1.tax
+          , t1.total_price
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM tb_sales_order_det t1
+        left join tb_item t2 on t1.item_code = t2.item_code 
+        where order_id = $1
+        order by t1.idx asc
+      `;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setSalesOrder: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_sales_order SET 
+            status = $2
+          , comment = $3
+          , updated_by = 'test'
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setSalesOrderDet: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_sales_order_det SET 
+            status = $2
+          , delivery_qty = $3
+          , due_date = $4
+          , comment = $5
+          , updated_at=now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addSalesOrder: async (params) => {
+
+    const client = await pool.connect();
+
+    try {
+
+      const { 
+        purchase_id
+        , client_code
+        , request_date
+        , comment
+        , user_id
+        , status
+        , det_status
+        , sel_row
+      } = params;
+
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+
+      const data = [
+        purchase_id
+        , client_code
+        , request_date
+        , status
+        , comment
+        , user_id
+      ];
+      
+      const query = `
+        INSERT INTO tb_sales_order (
+          order_id
+          , client_code
+          , order_date
+          , status
+          , comment
+          , request_id
+        ) values (
+          $1
+          , $2
+          , $3
+          , $4
+          , $5
+          , $6
+        )
+        RETURNING *
+      `;
+      const sql1 = await client.query(query, data);
+
+
+      const values = [];
+      const data2 = [];
+    
+      sel_row.forEach((proc, index) => {
+        values.push(
+          `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8})`
+        );
+    
+        data2.push(
+          purchase_id,
+          proc.item_code,
+          proc.quantity,
+          proc.unit_price,
+          det_status,
+          proc.supply_price,
+          proc.tax,
+          proc.total_price,
+        );
+      });
+    
+      const query2 = `
+        INSERT INTO tb_sales_order_det(
+          order_id
+          , item_code
+          , quantity
+          , unit_price
+          , status
+          , supply_price
+          , tax
+          , total_price
+        ) values ${values.join(', ')}
+        RETURNING *
+      `;
+
+      const sql2 = await client.query(query2, data2);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = {
+        mst: sql1.rows,
+        det: sql2.rows,
+      };
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+  },
+
+  delSalesOrder: async (params) => {
+    const client = await pool.connect();
+
+    try {
+  
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const query = `
+        DELETE FROM tb_sales_order WHERE idx = ANY($1)
+        RETURNING * 
+      `;
+      const sql1 = await client.query(query, params);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = sql1.rows;
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+    
+  },
+
 
 
 

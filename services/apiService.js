@@ -509,6 +509,14 @@ const apiService = {
     }
   },
 
+  getEquipmentCheckLog: async (params) => {
+    try {
+      return await apiModel.getEquipmentCheckLog(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   setEquipmentCheck: async (params) => {
     try {
       const { 
@@ -555,6 +563,15 @@ const apiService = {
         , comment
       ];
       return await apiModel.addEquipmentCheck(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addEquipmentCheckLog: async (params) => {
+    try {
+ 
+      return await apiModel.addEquipmentCheckLog(params);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1366,7 +1383,97 @@ const apiService = {
 
 
 
+// SalesOrder
+  getSalesOrder: async (params) => {
+    try {
+      return await apiModel.getSalesOrder(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
+  getSalesOrderDet: async (params) => {
+    try {
+      
+      return await apiModel.getSalesOrderDet(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setSalesOrder: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , comment
+      ];
+
+      return await apiModel.setSalesOrder(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setSalesOrderDet: async (params) => {
+    try {
+      const { 
+        idx
+        , status
+        , delivery_qty
+        , due_date
+        , comment
+      } = params;
+
+      const data = [
+        idx
+        , status
+        , delivery_qty
+        , due_date
+        , comment
+      ];
+
+      return await apiModel.setSalesOrderDet(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addSalesOrder: async (params) => {
+    try {
+      const gen_id = await apiModel.generagteTableId({prefix:'SO', table_name:'tb_sales_order'});
+      // console.log(gen_id);
+      params.purchase_id = gen_id.id;
+      params.status = 'ready';
+      params.det_status = 'pending';
+      return await apiModel.addSalesOrder(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delSalesOrder: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delSalesOrder(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
 
 
