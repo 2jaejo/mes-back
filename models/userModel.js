@@ -100,7 +100,8 @@ const userModel = {
           END AS show
         FROM tb_menu m
         LEFT JOIN tb_user_menu um ON um.menu_id = m.menu_id AND um.user_id = $1
-        WHERE m.parent_id IS NULL
+        WHERE m.parent_id IS NULL 
+        AND m.use_yn = 'Y'
         ORDER BY m.sort
       `;
 
@@ -136,8 +137,14 @@ const userModel = {
   
 
   addUser: async (params) => {
+    const client = await pool.connect();
+
     try {
-      const result = await pool.query(
+      // 트랜잭션 시작
+
+      await client.query('BEGIN');
+
+      const result = await client.query(
         `INSERT INTO tb_User (
           company_cd
           , user_id
@@ -158,13 +165,35 @@ const userModel = {
           , $5
           , $6
           , $7
-        ) RETURNING *`,
+        ) 
+        RETURNING user_id, user_nm, email, phone, addr, birthday  
+        `,
         params
       );
 
-      return result.rows[0];
+      const params2 = [params[0]]; // user_id
+      const result2 = await client.query(
+        `INSERT INTO tb_user_menu (user_id, menu_id)
+        VALUES ($1, 'pop')
+        ON CONFLICT DO NOTHING
+        RETURNING *`,
+        params2
+      );
+
+      await client.query('COMMIT');
+      
+      return {
+        user: result.rows[0], 
+        menu: result2.rows[0]
+      };
     } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
       throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
     }
   },
 
@@ -374,18 +403,31 @@ const userModel = {
     }
   },
 
-  setUserInfo: async (params) => {
+  setUserInfo: async (user_id, params) => {
     try {
-      const result = await pool.query(
-        `UPDATE tb_User SET 
-            email = $1 
-            , phone = $2 
-            , addr = $3 
-            , birthday = $4 
-          WHERE user_id = $5 
-          RETURNING * `,
-        params
-      );
+      const setClauses = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(params)) {
+        setClauses.push(`${key} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+
+      if (setClauses.length === 0) {
+        console.log('업데이트할 값이 없습니다.');
+        return;
+      }
+
+      const query = `
+        UPDATE tb_user
+        SET ${setClauses.join(', ')}
+        WHERE user_id = '${user_id}'
+        returning user_id, user_nm, email, phone, addr, birthday
+      `;
+
+      const result = await pool.query(query, values);
 
       return result.rows[0];
     } catch (error) {

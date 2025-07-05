@@ -27,6 +27,48 @@ const apiService = {
     }
   },
 
+  scanBarcode: async (params) => {
+    try {
+      console.log("scanBarcode");
+      const { barcode } = params;
+      const a = barcode.substring(0,2);
+      const b = barcode.substring(2);
+      return {a:a, b:b};
+      const data = [barcode];
+      return await apiModel.scanBarcode(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  excelMapping: async (params) => {
+    try {
+      console.log("excelMapping");
+      const { category } = params;
+      const data = [category];
+      return await apiModel.excelMapping(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setExcelMapping: async (params) => {
+    try {
+      console.log("setExcelMapping");
+      return await apiModel.setExcelMapping(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addExcelMapping: async (params) => {
+    try {
+      console.log("addExcelMapping");
+      return await apiModel.addExcelMapping(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
 
 
@@ -95,11 +137,12 @@ const apiService = {
       throw new Error(error.message);
     }
   },
+
   
   setItem: async (params) => {
     try {
       const { 
-        item_code
+        item_dotno
         , item_name
         , item_type
         , item_group_a
@@ -116,10 +159,11 @@ const apiService = {
         , lot_managed
         , use_yn
         , comment
+        , item_status
       } = params;
 
       const data = [
-        item_code
+        item_dotno
         , item_name
         , item_type
         , item_group_a
@@ -136,6 +180,7 @@ const apiService = {
         , lot_managed
         , use_yn
         , comment
+        , item_status
       ];
 
       return await apiModel.setItem(data);
@@ -144,48 +189,10 @@ const apiService = {
     }
   },
 
-  addItem: async (params) => {
+  addItem: async (params, user_nm) => {
     try {
-      const { 
-        item_code
-        , item_name
-        , item_type
-        , item_group_a
-        , item_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
-        , use_yn
-        , comment
-      } = params;
-
-      const data = [
-        item_code
-        , item_name
-        , item_type
-        , item_group_a
-        , item_group_b
-        , base_unit
-        , purchase_unit
-        , default_warehouse
-        , inspection_method
-        , incoming_inspection
-        , outgoing_inspection
-        , standard_price
-        , shelf_life_days
-        , shelf_life_managed
-        , lot_managed
-        , use_yn
-        , comment
-      ];
-      return await apiModel.addItem(data);
+      
+      return await apiModel.addItem(params, user_nm);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -199,7 +206,7 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      const arr_ids = arr.map(el => el.item_code); // 필요한 키만 추출
+      const arr_ids = arr.map(el => el.item_dotno); // 필요한 키만 추출
       const data = [arr_ids];
 
       return await apiModel.delItem(data);
@@ -207,6 +214,50 @@ const apiService = {
       throw new Error(error.message);
     }
   },
+
+  
+  // Raw
+  getRaw: async (params) => {
+    try {
+      return await apiModel.getRaw(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setRaw: async (params) => {
+    try {
+      const { raw_id, raw_name, raw_type, raw_group, use_yn, comment } = params;
+      const data = [raw_name, raw_type, raw_group, use_yn, comment, raw_id];
+      return await apiModel.setRaw(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addRaw: async (params, user_nm) => {
+    try {
+      
+      return await apiModel.addRaw(params, user_nm);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delRaw: async (params) => {
+    try {
+      const arr = params;
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+      return await apiModel.delRaw(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
 
 
   // Price
@@ -222,8 +273,8 @@ const apiService = {
 
   getPriceHistory: async (params) => {
     try {
-      const { item_code, client_code } = params;
-      const data = [item_code, client_code]; 
+      const { item_dotno, client_code } = params;
+      const data = [item_dotno, client_code]; 
       return await apiModel.getPriceHistory(data);
     } catch (error) {
       throw new Error(error.message);
@@ -263,12 +314,12 @@ const apiService = {
   addPrice: async (params) => {
     try {
       const { 
-        item_code
+        item_dotno
         , client_code
       } = params;
 
       const data = [
-         item_code
+         item_dotno
         , client_code
       ];
       return await apiModel.addPrice(data);
@@ -307,35 +358,15 @@ const apiService = {
   setClient: async (params) => {
     try {
       const { 
-        client_code
-        , client_name
-        , client_type
-        , business_no
-        , business_type
-        , business_item
-        , ceo_name
-        , contact_name
-        , contact_phone
-        , contact_fax
-        , contact_email
-        , address
+        user_nm
+        , idx
         , use_yn
         , comment
       } = params;
 
       const data = [
-        client_code
-        , client_name
-        , client_type
-        , business_no
-        , business_type
-        , business_item
-        , ceo_name
-        , contact_name
-        , contact_phone
-        , contact_fax
-        , contact_email
-        , address
+        user_nm
+        , idx
         , use_yn
         , comment
       ];
@@ -346,42 +377,10 @@ const apiService = {
     }
   },
 
-  addClient: async (params) => {
+  addClient: async (params, user_nm) => {
     try {
-      const { 
-        client_code
-        , client_name
-        , client_type
-        , business_no
-        , business_type
-        , business_item
-        , ceo_name
-        , contact_name
-        , contact_phone
-        , contact_fax
-        , contact_email
-        , address
-        , use_yn
-        , comment
-      } = params;
-
-      const data = [
-        client_code
-        , client_name
-        , client_type
-        , business_no
-        , business_type
-        , business_item
-        , ceo_name
-        , contact_name
-        , contact_phone
-        , contact_fax
-        , contact_email
-        , address
-        , use_yn
-        , comment
-      ];
-      return await apiModel.addClient(data);
+      
+      return await apiModel.addClient(params, user_nm);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -395,7 +394,7 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      const arr_ids = arr.map(el => el.client_code); // 필요한 키만 추출
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
       const data = [arr_ids];
 
       return await apiModel.delClient(data);
@@ -788,12 +787,12 @@ const apiService = {
   addBom: async (params) => {
     try {
       const { 
-        item_code
+        item_dotno
         , material_code
       } = params;
 
       const data = [
-        item_code
+        item_dotno
         , material_code
       ];
       return await apiModel.addBom(data);
@@ -986,14 +985,14 @@ const apiService = {
     }
   },
 
-  addOrder: async (params) => {
+  addOrder: async (params, name) => {
     try {
-      const purchase_id = await apiModel.generagteTableId({prefix:'PO', table_name:'tb_purchase'});
+      const purchase_id = await apiModel.generateTableId({prefix:'PO', table_name:'tb_purchase'});
       // console.log(purchase_id);
       params.purchase_id = purchase_id.id;
       params.status = 'ready';
       params.det_status = 'pending';
-      return await apiModel.addOrder(params);
+      return await apiModel.addOrder(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1076,7 +1075,7 @@ const apiService = {
     }
   },
 
-  setReceiptClose: async (params) => {
+  setReceiptClose: async (params, name) => {
     try {
       const arr = params;
 
@@ -1084,19 +1083,19 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      return await apiModel.setReceiptClose(params);
+      return await apiModel.setReceiptClose(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  addReceipt: async (params) => {
+  addReceipt: async (params, name) => {
     try {
-      const id = await apiModel.generagteTableId({prefix:'RV', table_name:'tb_purchase_receipt'});
+      const id = await apiModel.generateTableId({prefix:'RV', table_name:'tb_purchase_receipt'});
       params.receipt_id = id.id;
       params.status = 'ready';
       params.det_status = 'pending';
-      return await apiModel.addReceipt(params);
+      return await apiModel.addReceipt(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1206,7 +1205,7 @@ const apiService = {
 
   addReceiptReturn: async (params) => {
     try {
-      const id = await apiModel.generagteTableId({prefix:'RT', table_name:'tb_purchase_return'});
+      const id = await apiModel.generateTableId({prefix:'RT', table_name:'tb_purchase_return'});
       params.return_id = id.id;
       params.status = 'ready';
       params.det_status = 'pending';
@@ -1280,7 +1279,7 @@ const apiService = {
 
   addRelease: async (params) => {
     try {
-      const id = await apiModel.generagteTableId({prefix:'RS', table_name:'tb_purchase_return'});
+      const id = await apiModel.generateTableId({prefix:'RS', table_name:'tb_purchase_return'});
       params.release_id = id.id;
       params.status = 'ready';
       params.det_status = 'pending';
@@ -1311,7 +1310,7 @@ const apiService = {
   // ReleaseReturn
   addReleaseReturn: async (params) => {
     try {
-      const id = await apiModel.generagteTableId({prefix:'RR', table_name:'tb_purchase_return'});
+      const id = await apiModel.generateTableId({prefix:'RR', table_name:'tb_purchase_return'});
       params.releaseReturn_id = id.id;
       params.status = 'ready';
       params.det_status = 'pending';
@@ -1447,7 +1446,7 @@ const apiService = {
 
   addSalesOrder: async (params) => {
     try {
-      const gen_id = await apiModel.generagteTableId({prefix:'SO', table_name:'tb_sales_order'});
+      const gen_id = await apiModel.generateTableId({prefix:'SO', table_name:'tb_sales_order'});
       // console.log(gen_id);
       params.purchase_id = gen_id.id;
       params.status = 'ready';
@@ -1475,7 +1474,131 @@ const apiService = {
     }
   },
 
+  // WorkOrder
+  getWorkOrder: async (params) => {
+    try {
+      return await apiModel.getWorkOrder(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
+  getWorkOrderDet: async (params) => {
+    try {
+      return await apiModel.getWorkOrderDet(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setWorkOrder: async (params) => {
+    try {
+      const { 
+        idx
+        , order_qty
+        , status
+        , start_date
+        , start_time
+        , end_date
+        , end_time
+        , remark
+      } = params;
+
+      const data = [
+        idx
+        , order_qty
+        , status
+        , start_date
+        , start_time
+        , end_date
+        , end_time
+        , remark
+      ];
+
+      return await apiModel.setWorkOrder(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addWorkOrder: async (params) => {
+    try {
+      const gen_id = await apiModel.generateTableId({prefix:'WO', table_name:'tb_work_order'});
+      // console.log(gen_id);
+      params.work_id = gen_id.id;
+      params.status = 'ready';
+      params.det_status = 'pending';
+      return await apiModel.addWorkOrder(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delWorkOrder: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delWorkOrder(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  // WorkResult
+  getWorkResult: async (params) => {
+    try {
+      return await apiModel.getWorkResult(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setWorkResult: async (params) => {
+    try {
+      const gen_id = await apiModel.generateTableId({prefix:'WR', table_name:'tb_work_result'});
+      params.result_id = params.result_id || gen_id.id;  
+      return await apiModel.setWorkResult(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addWorkResult: async (params) => {
+    try {
+      const gen_id = await apiModel.generateTableId({prefix:'WR', table_name:'tb_work_result'});
+      // console.log(gen_id);
+      params.work_result_id = gen_id.id;
+      params.status = 'ready';
+      params.det_status = 'pending';
+      return await apiModel.addWorkResult(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delWorkResult: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await apiModel.delWorkResult(data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
 
 

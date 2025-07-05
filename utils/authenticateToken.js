@@ -27,7 +27,7 @@ const authenticateToken = (req, res, next) => {
           }
 
           // 새 엑세스 토큰 발급
-          const newAccessToken = jwt.sign({ id: decoded.id }, process.env.ACCESS_TOKEN_SECRET,{ expiresIn: process.env.ACCESS_TOKEN_EXPIRES });
+          const newAccessToken = jwt.sign({ id: decoded.id, name:decoded.name }, process.env.ACCESS_TOKEN_SECRET,{ expiresIn: process.env.ACCESS_TOKEN_EXPIRES });
 
           // 새 토큰을 응답 헤더에 포함 (또는 클라이언트에 반환)
           res.setHeader('Authorization', `Bearer ${newAccessToken}`);

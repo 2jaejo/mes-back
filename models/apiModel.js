@@ -105,9 +105,130 @@ const apiModel = {
     }
   },
 
+  // 바코드 스캔
+  scanBarcode: async (params) => {
+    try {
+      const query = `
+        SELECT
+          *
+        FROM tb_item
+        WHERE barcode = $1
+      `;
+      const result = await pool.query(query, params);
+      if (result.rows.length === 0) {
+        throw new Error('해당 바코드에 대한 정보가 없습니다.');
+      }
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  // 엑셀 매핑
+  excelMapping: async (params) => {
+    try {
+      const query = `
+        SELECT
+          *
+        FROM tb_excel_mapping
+        WHERE category = $1
+      `;
+      const result = await pool.query(query, params);
+      if (result.rows.length === 0) {
+        throw new Error('해당 카테고리에 대한 정보가 없습니다.');
+      }
+      return result.rows[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setExcelMapping: async (params) => {
+    try {
+      // category 값 추출 및 제거
+      const { category, ...columns } = params;
+
+      if (!category) {
+        throw new Error("category 값이 없습니다.");
+      }
+
+      const alphabet = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)); // ['A'...'Z']
+
+      // SET절 구성
+      const setClauses = alphabet.map((col, idx) => `"${col}" = $${idx + 1}`);
+      const values = alphabet.map(col => columns[col] ?? ""); // 없는 키는 빈 문자열
+
+      // WHERE절은 마지막 파라미터로 category
+      values.push(category);
+      const query = `UPDATE tb_excel_mapping SET ${setClauses.join(', ')} WHERE category = $${values.length};`;
+
+    
+      const result = await pool.query(query, values);
+
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addExcelMapping: async (params) => {
+    const client = await pool.connect();
+
+    try {
+
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+      
+      const { tb, items } = params;
+
+      // 테이블 이름 검증 테스트용
+      const allowedTables = ['tb_item', 'tb_raw', 'tb_client', 'tb_vendor'];
+
+      // tb 값이 포함된 allowedTables 항목 찾기
+      const matchedTables = allowedTables.filter(table => table.includes(tb));
+      if (matchedTables.length === 0) {
+        throw new Error('Invalid table name');
+      }
+
+      // 첫번째 매칭된 테이블 사용 예
+      const tableName = matchedTables[0];
+      const successRows = [];
+      const failedRows = [];
+
+      for (const [i, row] of items.entries()) {
+        try {
+          await client.query(`SAVEPOINT sp_${i}`);
+
+          const columns = Object.keys(row);                        
+          const values = Object.values(row);                       
+          const placeholders = columns.map((_, idx) => `$${idx + 1}`); 
+          
+          await client.query(`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+          successRows.push(row);
+
+        } catch (err) {
+          await client.query(`ROLLBACK TO SAVEPOINT sp_${i}`);
+          failedRows.push({ row, error: err.message });
+        }
+      }
+
+      await client.query('COMMIT');
+
+      return { successRows, failedRows };
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+
+  },   
 
   // prefix + YYMMDD + 다섯자리(updated_at 카운터 + 1)
-  generagteTableId: async (params) =>{
+  generateTableId: async (params) => {
     try {
       const {prefix, table_name} = params;
       const query = `
@@ -235,10 +356,14 @@ const apiModel = {
   // Item
   getItem: async (params) => {
     try {
-      const { item_type, item_group_a, item_group_b, use_yn, item_code, item_name, client_code, client_name } = params;
+      const { item_type, use_yn, item_dotno, item_name, barcode } = params;
       const data = [];
 
-      let query = `SELECT * FROM tb_item WHERE 1=1`;
+      let query = `
+        SELECT 
+          * 
+        FROM tb_item WHERE 1=1
+      `;
       let idx = 1;
       
       // item_type 조건
@@ -247,17 +372,6 @@ const apiModel = {
         data.push(item_type);
       }
 
-      // item_group_a 조건
-      if (item_group_a !== '' && item_group_a !== undefined) {
-        query += ` AND item_group_a = $${idx++}`;
-        data.push(item_group_a);
-      }
-
-      // item_group_b 조건
-      if (item_group_b !== '' && item_group_b !== undefined) {
-        query += ` AND item_group_b = $${idx++}`;
-        data.push(item_group_b);
-      }
 
       // use_yn 조건
       if (use_yn !== '' && use_yn !== undefined) {
@@ -265,10 +379,10 @@ const apiModel = {
         data.push(use_yn);
       }
 
-      // item_code 조건
-      if (item_code !== '' && item_code !== undefined) {
-        query += ` AND item_code ILIKE $${idx++}`;
-        data.push(`%${item_code}%`);
+      // item_dotno 조건
+      if (item_dotno !== '' && item_dotno !== undefined) {
+        query += ` AND item_dotno ILIKE $${idx++}`;
+        data.push(`%${item_dotno}%`);
       }
 
       // item_name 조건
@@ -277,19 +391,13 @@ const apiModel = {
         data.push(`%${item_name}%`);
       }
 
-      // client_code 조건
-      if (client_code !== '' && client_code !== undefined) {
-        query += ` AND client_code ILIKE $${idx++}`;
-        data.push(`%${client_code}%`);
+      // barcode 조건
+      if (barcode !== '' && barcode !== undefined) {
+        query += ` AND bar_code ILIKE $${idx++}`;
+        data.push(`%${barcode}%`);
       }
 
-      // client_name 조건
-      if (client_name !== '' && client_name !== undefined) {
-        query += ` AND client_name ILIKE $${idx++}`;
-        data.push(`%${client_name}%`);
-      }
-
-      query += ` ORDER BY item_code asc`;
+      query += ` ORDER BY idx desc`;
 
       const result = await pool.query(query, data);
       return result.rows; 
@@ -319,8 +427,9 @@ const apiModel = {
           , lot_managed= $15
           , use_yn= $16
           , comment= $17
+          , item_status = $18
           , updated_at=now()
-        WHERE item_code = $1
+        WHERE item_dotno = $1
         RETURNING *
       `;
       const result = await pool.query(query, params);
@@ -330,54 +439,26 @@ const apiModel = {
     }
   },
 
-  addItem: async (params) => {
+  addItem: async (params, user_nm) => {
     try {
+      const tableName = 'tb_item';
+
+      // 유효한 값만 필터링
+      const entries = Object.entries(params).filter(
+        ([_, value]) => value !== '' && value !== null && value !== undefined
+      );
+
+      const columns = entries.map(([key]) => key);
+      const values = entries.map(([_, value]) => value);
+      const placeholders = entries.map((_, idx) => `$${idx + 1}`);
 
       const query = `
-        INSERT INTO tb_item (
-          item_code
-          , item_name
-          , item_type
-          , item_group_a
-          , item_group_b
-          , base_unit
-          , purchase_unit
-          , default_warehouse
-          , inspection_method
-          , incoming_inspection
-          , outgoing_inspection
-          , standard_price
-          , shelf_life_days
-          , shelf_life_managed
-          , lot_managed
-          , use_yn
-          , comment
-          , created_at
-          , updated_at
-        ) values (
-          $1
-          , $2
-          , $3
-          , $4
-          , $5
-          , $6
-          , $7
-          , $8
-          , $9
-          , $10
-          , $11
-          , $12
-          , $13
-          , $14
-          , $15
-          , $16
-          , $17
-          , now()
-          , now()
-        )
-        RETURNING *
+        INSERT INTO ${tableName} (${columns.join(', ')} , reg_date, reg_admin_name)
+        VALUES (${placeholders.join(', ')}, TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'), '${user_nm}');
       `;
-      const result = await pool.query(query, params);
+
+      const result = await pool.query(query, values);
+      
       return result.rows; 
     } catch (error) {
       throw new Error(error.message);
@@ -388,7 +469,121 @@ const apiModel = {
     try {
       const query = `
         DELETE FROM tb_item
-        WHERE item_code = ANY($1::text[])
+        WHERE item_dotno = ANY($1::text[])
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+    
+  },
+
+  // Raw
+  getRaw: async (params) => {
+    try {
+      const { raw_code, raw_name, barcode } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          * 
+        FROM tb_raw WHERE 1=1
+      `;
+      let idx = 1;
+      
+      // raw_code 조건
+      if (raw_code !== '' && raw_code !== undefined) {
+        query += ` AND raw_code ILIKE $${idx++}`;
+        data.push(`%${raw_code}%`);
+      }
+
+      // raw_name 조건
+      if (raw_name !== '' && raw_name !== undefined) {
+        query += ` AND raw_name ILIKE $${idx++}`;
+        data.push(`%${raw_name}%`);
+      }
+
+      // barcode 조건
+      if (barcode !== '' && barcode !== undefined) {
+        query += ` AND bar_code ILIKE $${idx++}`;
+        data.push(`%${barcode}%`);
+      }
+
+      query += ` ORDER BY idx desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setRaw: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_raw SET 
+          item_name= $2
+          , item_type= $3
+          , item_group_a= $4
+          , item_group_b= $5
+          , base_unit= $6
+          , purchase_unit= $7
+          , default_warehouse= $8
+          , inspection_method= $9
+          , incoming_inspection= $10
+          , outgoing_inspection= $11
+          , standard_price= $12
+          , shelf_life_days= $13
+          , shelf_life_managed= $14
+          , lot_managed= $15
+          , use_yn= $16
+          , comment= $17
+          , item_status = $18
+          , updated_at=now()
+        WHERE item_dotno = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addRaw: async (params, user_nm) => {
+    try {
+      const tableName = 'tb_raw';
+
+      // 유효한 값만 필터링
+      const entries = Object.entries(params).filter(
+        ([_, value]) => value !== '' && value !== null && value !== undefined
+      );
+
+      const columns = entries.map(([key]) => key);
+      const values = entries.map(([_, value]) => value);
+      const placeholders = entries.map((_, idx) => `$${idx + 1}`);
+
+      const query = `
+        INSERT INTO ${tableName} (${columns.join(', ')} , created_at, created_by)
+        VALUES (${placeholders.join(', ')}, TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'), '${user_nm}');
+      `;
+
+      const result = await pool.query(query, values);
+
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delRaw: async (params) => {
+    try {
+      const query = `
+        DELETE FROM tb_raw
+        WHERE idx = ANY($1::int[])
         RETURNING *
       `;
       const result = await pool.query(query, params);
@@ -405,10 +600,10 @@ const apiModel = {
   getPrice: async (params) => {
     try {
       let query = `
-        SELECT DISTINCT ON (t1.item_code, t1.quantity_min, t1.quantity_max)
+        SELECT DISTINCT ON (t1.item_dotno, t1.quantity_min, t1.quantity_max)
           t1.idx
           , t1.price_id
-          , t1.item_code
+          , t1.item_dotno
           , t2.item_name 
           , t1.client_code
           , t1.contract_id
@@ -424,12 +619,12 @@ const apiModel = {
           , t1.created_at
           , t1.updated_at 
         FROM tb_Price t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno 
         WHERE t1.use_yn = 'Y'
         AND t1.client_code = $1 
         AND t1.start_date <= CURRENT_DATE
         AND (t1.end_date IS NULL OR t1.end_date >= CURRENT_DATE)
-        ORDER by t1.item_code, t1.quantity_min, t1.quantity_max, t1.start_date desc, t1.idx desc
+        ORDER by t1.item_dotno, t1.quantity_min, t1.quantity_max, t1.start_date desc, t1.idx desc
       `;
       const result = await pool.query(query, params);
       return result.rows; 
@@ -445,7 +640,7 @@ const apiModel = {
         SELECT 
           t1.idx
           , t1.price_id
-          , t1.item_code
+          , t1.item_dotno
           , t2.item_name 
           , t1.client_code
           , t1.contract_id
@@ -461,9 +656,9 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_Price t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno 
         WHERE t1.use_yn = 'Y'
-        AND t1.item_code = $1 
+        AND t1.item_dotno = $1 
         AND t1.client_code = $2 
         ORDER by t1.start_date desc
       `;
@@ -501,7 +696,7 @@ const apiModel = {
     try {
       const query = `
         INSERT INTO tb_price(
-           item_code
+           item_dotno
           , client_code
         ) values (
            $1
@@ -568,7 +763,7 @@ const apiModel = {
         data.push(use_yn);
       }
 
-      query += ` ORDER BY client_code asc`;
+      query += ` ORDER BY idx desc`;
 
       const result = await pool.query(query, data);
       return result.rows; 
@@ -583,22 +778,12 @@ const apiModel = {
       const query = `
         UPDATE tb_client
         SET
-          client_name = $2
-          , client_type = $3
-          , business_no = $4
-          , business_type = $5
-          , business_item = $6
-          , ceo_name = $7
-          , contact_name = $8
-          , contact_phone = $9
-          , contact_fax = $10
-          , contact_email = $11
-          , address = $12
-          , use_yn = $13
-          , comment = $14
-          , updated_at = now()
+           use_yn = $3
+          , comment = $4
+          , updated_at = TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS')
+          , updated_by = $1
         WHERE
-          client_code = $1
+          idx = $2
         RETURNING *
       `;
       const result = await pool.query(query, params);
@@ -608,48 +793,26 @@ const apiModel = {
     }
   },
 
-  addClient: async (params) => {
+  addClient: async (params, user_nm) => {
     try {
 
+      const tableName = 'tb_client';
+
+      // 유효한 값만 필터링
+      const entries = Object.entries(params).filter(
+        ([_, value]) => value !== '' && value !== null && value !== undefined
+      );
+
+      const columns = entries.map(([key]) => key);
+      const values = entries.map(([_, value]) => value);
+      const placeholders = entries.map((_, idx) => `$${idx + 1}`);
+
       const query = `
-        INSERT INTO tb_client(
-          client_code
-          , client_name
-          , client_type
-          , business_no
-          , business_type
-          , business_item
-          , ceo_name
-          , contact_name
-          , contact_phone
-          , contact_fax
-          , contact_email
-          , address
-          , use_yn
-          , comment
-          , created_at
-          , updated_at
-        ) VALUES (
-          $1
-          , $2
-          , $3
-          , $4
-          , $5
-          , $6
-          , $7
-          , $8
-          , $9
-          , $10
-          , $11
-          , $12
-          , $13
-          , $14
-          , CURRENT_TIMESTAMP
-          , CURRENT_TIMESTAMP
-        )
-        RETURNING *
+        INSERT INTO ${tableName} (${columns.join(', ')} , created_at, created_by, updated_at, updated_by)
+        VALUES (${placeholders.join(', ')}, TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'), '${user_nm}', TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS'), '${user_nm}');
       `;
-      const result = await pool.query(query, params);
+
+      const result = await pool.query(query, values);
       return result.rows; 
     } catch (error) {
       throw new Error(error.message);
@@ -660,7 +823,7 @@ const apiModel = {
     try {
       const query = `
         DELETE FROM tb_client
-        WHERE client_code = ANY($1::text[])
+        WHERE idx = ANY($1::int[])
         RETURNING *
       `;
       const result = await pool.query(query, params);
@@ -688,7 +851,6 @@ const apiModel = {
           , manufacturer
           , model
           , TO_CHAR(install_date, 'YYYY-MM-DD') AS install_date
-          , location
           , status
           , use_yn
           , TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
@@ -860,7 +1022,6 @@ const apiModel = {
           , t3.manufacturer
           , t3.model
           , TO_CHAR(t3.install_date, 'YYYY-MM-DD') AS install_date
-          , t3.location
           , t3.status
           , t3.use_yn
         FROM tb_equipment_check_log t1
@@ -1138,7 +1299,7 @@ const apiModel = {
       let query = `
         SELECT 
           t1.idx
-          , t1.item_code
+          , t1.item_dotno
           , t2.item_name 
           , t1.router_code
           , t1.router_name
@@ -1148,7 +1309,7 @@ const apiModel = {
           , t1.created_at
           , t1.updated_at
         FROM tb_router t1
-        left join tb_item t2 on t1.item_code = t2.item_code
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno
         WHERE 1=1
       `;
       let idx = 1;
@@ -1257,7 +1418,7 @@ const apiModel = {
       const { 
         router_code
         , router_name
-        , item_code
+        , item_dotno
         , use_yn
         , version
         , comment
@@ -1271,7 +1432,7 @@ const apiModel = {
       const data = [
         router_code
         , router_name
-        , item_code
+        , item_dotno
         , use_yn
         , version
         , comment
@@ -1281,7 +1442,7 @@ const apiModel = {
         INSERT INTO tb_router(
           router_code
           , router_name
-          , item_code
+          , item_dotno
           , use_yn
           , version
           , comment
@@ -1395,16 +1556,16 @@ const apiModel = {
   // Bom
   getBom: async (params) => {
     try {
-      const { item_code } = params;
-      const data = [item_code];
+      const { item_dotno } = params;
+      const data = [item_dotno];
 
       let query = `
         SELECT 
           t1.idx
-          , t1.item_code
+          , t1.item_dotno
           , t2.item_name
           , t1.material_code
-          , t3.item_name as material_name
+          , t3.item_dotno as material_name
           , t1.quantity
           , t1.unit
           , t1.sort
@@ -1412,9 +1573,9 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM public.tb_bom t1
-        left join tb_item t2 on t1.item_code = t2.item_code
-        left join tb_item t3 on t1.material_code = t3.item_code
-        where t1.item_code = $1
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno
+        left join tb_item t3 on t1.material_code = t3.item_dotno
+        where t1.item_dotno = $1
         ORDER BY sort asc
       `;
 
@@ -1450,7 +1611,7 @@ const apiModel = {
     try {
       const query = `
         INSERT INTO tb_bom (
-          item_code
+          item_dotno
           , material_code
         ) values (
           $1
@@ -1724,7 +1885,7 @@ const apiModel = {
   getOrder: async (params) => {
     try {
  
-      const { start_date, end_date, client_code, client_name, purchase_id} = params;
+      const { start_date, end_date, client_code, client_name, purchase_id, purchase_status} = params;
       const data = [];
 
       let query = `
@@ -1733,7 +1894,6 @@ const apiModel = {
           , t1.purchase_id
           , t1.client_code
           , t2.client_name 
-          , TO_CHAR(t1.request_date, 'YYYY-MM-DD') AS request_date
           , TO_CHAR(t1.order_date, 'YYYY-MM-DD') AS order_date
           , t3.supply_price
           , t3.tax
@@ -1762,7 +1922,7 @@ const apiModel = {
       
       // date 조건
       if (start_date !== '' && end_date !== '') {
-        query += ` AND t1.request_date BETWEEN $${idx++} AND $${idx++}`;
+        query += ` AND t1.order_date BETWEEN $${idx++} AND $${idx++}`;
         data.push(start_date);
         data.push(end_date);
       }
@@ -1783,6 +1943,12 @@ const apiModel = {
       if (purchase_id !== '') {
         query += ` AND t1.purchase_id ILIKE $${idx++}`;
         data.push(`%${purchase_id}%`);
+      }
+
+      // purchase_status 조건
+      if (purchase_status !== '') {
+        query += ` AND t1.status ILIKE $${idx++}`;
+        data.push(`%${purchase_status}%`);
       }
 
 
@@ -1808,11 +1974,10 @@ const apiModel = {
         SELECT 
           t1.idx
           , t1.purchase_id
-          , t1.item_code
-          , t2.item_name
-          , t2.base_unit 
-          , t2.purchase_unit 
-          , t2.incoming_inspection
+          , t1.raw_code
+          , t2.raw_name
+          , t2.base_unit
+          , t2.unit_size
           , t1.quantity
           , t1.unit_price
           , t1.received_qty
@@ -1825,7 +1990,7 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_purchase_det t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
+        left join tb_raw t2 on t1.raw_code = t2.raw_code 
         where purchase_id = $1
         order by t1.idx asc
       `;
@@ -1875,7 +2040,7 @@ const apiModel = {
     }
   },
 
-  addOrder: async (params) => {
+  addOrder: async (params, name) => {
 
     const client = await pool.connect();
 
@@ -1884,7 +2049,7 @@ const apiModel = {
       const { 
         purchase_id
         , client_code
-        , request_date
+        , order_date
         , comment
         , user_id
         , status
@@ -1900,7 +2065,7 @@ const apiModel = {
       const data = [
         purchase_id
         , client_code
-        , request_date
+        , order_date
         , status
         , comment
         , user_id
@@ -1910,10 +2075,14 @@ const apiModel = {
         INSERT INTO tb_purchase(
           purchase_id
           , client_code
-          , request_date
+          , order_date
           , status
           , comment
           , request_id
+          , created_at
+          , created_by
+          , updated_at
+          , updated_by
         ) values (
           $1
           , $2
@@ -1921,6 +2090,10 @@ const apiModel = {
           , $4
           , $5
           , $6
+          , now()
+          , '${name}'
+          , now()
+          , '${name}'
         )
         RETURNING *
       `;
@@ -1937,7 +2110,7 @@ const apiModel = {
     
         data2.push(
           purchase_id,
-          proc.item_code,
+          proc.raw_code,
           proc.quantity,
           proc.unit_price,
           det_status,
@@ -1950,7 +2123,7 @@ const apiModel = {
       const query2 = `
         INSERT INTO tb_purchase_det(
           purchase_id
-          , item_code
+          , raw_code
           , quantity
           , unit_price
           , status
@@ -2036,8 +2209,6 @@ const apiModel = {
           , t1.client_code
           , t2.client_name 
           , t3.item_count
-          , t3.supply_price
-          , t3.tax
           , t3.total_price
           , t1.status
           , t1.comment
@@ -2051,9 +2222,7 @@ const apiModel = {
         left join (
             select
                 receipt_id 
-                , count(item_code) as item_count
-                , sum(supply_price) as supply_price
-                , sum(tax) as tax
+                , count(raw_code) as item_count
                 , sum(total_price) as total_price
             from tb_purchase_receipt_det
             group by receipt_id 
@@ -2118,17 +2287,14 @@ const apiModel = {
           t1.idx
           , t1.purchase_det_id
           , t1.receipt_id 
-          , t1.item_code
-          , t2.item_name
-          , t2.base_unit 
-          , t2.purchase_unit 
-          , t2.incoming_inspection
+          , t1.raw_code
+          , t2.raw_name
+          , t2.base_unit
+          , t2.unit_size
           , t1.received_qty
           , t1.status
           , t1.lot_no 
           , t1.unit_price
-          , t1.supply_price 
-          , t1.tax 
           , t1.total_price 
           , t1.comment
           , t1.created_by 
@@ -2136,7 +2302,7 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_purchase_receipt_det t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
+        left join tb_raw t2 on t1.raw_code = t2.raw_code 
         where receipt_id = $1
         order by t1.idx asc
       `;
@@ -2186,7 +2352,7 @@ const apiModel = {
     }
   },
   
-  setReceiptClose: async (params) => {
+  setReceiptClose: async (params, name) => {
     
     const client = await pool.connect();
 
@@ -2211,7 +2377,7 @@ const apiModel = {
       const query2 = `
         UPDATE tb_purchase_receipt_det SET 
             status = 'complete'
-          , updated_by = 'test'
+          , updated_by = '${name}'
           , updated_at=now()
         WHERE receipt_id = ANY($1)
         RETURNING *
@@ -2252,7 +2418,7 @@ const apiModel = {
 
   },
 
-  addReceipt: async (params) => {
+  addReceipt: async (params, name) => {
 
     const client = await pool.connect();
 
@@ -2262,7 +2428,7 @@ const apiModel = {
         purchase_id
         , receipt_id
         , client_code
-        , request_date
+        , receipt_date
         , comment
         , user_id
         , status
@@ -2279,7 +2445,7 @@ const apiModel = {
         purchase_id
         , receipt_id
         , client_code
-        , request_date
+        , receipt_date
         , status
         , comment
         , user_id
@@ -2294,6 +2460,8 @@ const apiModel = {
           , status
           , comment
           , manager
+          , created_by
+          , updated_by
         ) values (
           $1
           , $2
@@ -2302,6 +2470,8 @@ const apiModel = {
           , $5
           , $6
           , $7
+          , '${name}'
+          , '${name}'
         )
         RETURNING *
       `;
@@ -2313,17 +2483,15 @@ const apiModel = {
     
       sel_row.forEach((proc, index) => {
         values.push(
-          `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8})`
+          `($${index * 6 + 1}, $${index * 6 + 2}, $${index * 6 + 3}, $${index * 6 + 4}, $${index * 6 + 5}, $${index * 6 + 6})`
         );
     
         data2.push(
           receipt_id,
-          proc.item_code,
+          proc.raw_code,
           proc.quantity,
           proc.unit_price,
           det_status,
-          proc.supply_price,
-          proc.tax,
           proc.total_price,
         );
       });
@@ -2331,12 +2499,10 @@ const apiModel = {
       const query2 = `
         INSERT INTO tb_purchase_receipt_det(
            receipt_id
-          , item_code
+          , raw_code
           , received_qty
           , unit_price
           , status
-          , supply_price
-          , tax
           , total_price
         ) values ${values.join(', ')}
         RETURNING *
@@ -2403,15 +2569,15 @@ const apiModel = {
   getReceiptLog: async (params) => {
     try {
  
-      const { start_date, end_date, item_code, item_name, receipt_id, change_type} = params;
+      const { start_date, end_date, raw_code, raw_name, receipt_id, change_type} = params;
       const data = [];
 
       let query = `
         SELECT 
             t1.idx
             , t1.receipt_id
-            , t1.item_code
-            , t2.item_name 
+            , t1.raw_code
+            , t2.raw_name 
             , t1.warehouse_id
             , t1.lot_no
             , t1.changed_quantity
@@ -2419,8 +2585,8 @@ const apiModel = {
             , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS receipt_date
             , t1.created_at
             , t1.updated_at
-        FROM tb_purchase_stock_log t1 
-        left join tb_item t2 on t1.item_code = t2.item_code
+        FROM tb_raw_stock_log t1 
+        left join tb_raw t2 on t1.raw_code = t2.raw_code
         WHERE 1=1
       `;
       let idx = 1;
@@ -2432,16 +2598,16 @@ const apiModel = {
         data.push(end_date);
       }
 
-      // item_code 조건
-      if (item_code !== '') {
-        query += ` AND t1.item_code ILIKE $${idx++}`;
-        data.push(`%${item_code}%`);
+      // raw_code 조건
+      if (raw_code !== '') {
+        query += ` AND t1.raw_code ILIKE $${idx++}`;
+        data.push(`%${raw_code}%`);
       }
 
-      // item_name 조건
-      if (item_name !== '') {
-        query += ` AND t2.item_name ILIKE $${idx++}`;
-        data.push(`%${item_name}%`);
+      // raw_name 조건
+      if (raw_name !== '') {
+        query += ` AND t2.raw_name ILIKE $${idx++}`;
+        data.push(`%${raw_name}%`);
       }
 
       // receipt_id 조건
@@ -2504,7 +2670,7 @@ const apiModel = {
         left join (
             select
                 return_id 
-                , count(item_code) as item_count
+                , count(item_dotno) as item_count
                 , sum(supply_price) as supply_price
                 , sum(tax) as tax
                 , sum(total_price) as total_price
@@ -2572,11 +2738,8 @@ const apiModel = {
           t1.idx
           , t1.return_det_id
           , t1.return_id 
-          , t1.item_code
+          , t1.item_dotno
           , t2.item_name
-          , t2.base_unit 
-          , t2.purchase_unit 
-          , t2.incoming_inspection
           , t1.return_qty
           , t1.status
           , t1.lot_no 
@@ -2590,7 +2753,7 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_purchase_return_det t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno 
         where return_id = $1
         order by t1.idx asc
       `;
@@ -2771,7 +2934,7 @@ const apiModel = {
     
         data2.push(
           return_id,
-          proc.item_code,
+          proc.item_dotno,
           proc.quantity,
           proc.unit_price,
           det_status,
@@ -2784,7 +2947,7 @@ const apiModel = {
       const query2 = `
         INSERT INTO tb_purchase_return_det(
            return_id
-          , item_code
+          , item_dotno
           , return_qty
           , unit_price
           , status
@@ -2823,13 +2986,13 @@ const apiModel = {
   getRelease: async (params) => {
     try {
  
-      const { item_code, item_name } = params;
+      const { item_dotno, item_name } = params;
       const data = [];
 
       let query = `
         select 
           t1.idx 
-          , t1.item_code 
+          , t1.item_dotno 
           , t2.item_name 
           , t1.warehouse_id 
           , t1.lot_no 
@@ -2838,17 +3001,17 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
             , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         from tb_purchase_stock t1
-        left join tb_item t2 on t1.item_code = t2.item_code
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno
         WHERE 1=1
         and t1.quantity is not null
         and t1.quantity != 0
       `;
       let idx = 1;
 
-      // item_code 조건
-      if (item_code !== '') {
-        query += ` AND t1.item_code ILIKE $${idx++}`;
-        data.push(`%${item_code}%`);
+      // item_dotno 조건
+      if (item_dotno !== '') {
+        query += ` AND t1.item_dotno ILIKE $${idx++}`;
+        data.push(`%${item_dotno}%`);
       }
 
       // item_name 조건
@@ -2877,11 +3040,8 @@ const apiModel = {
           t1.idx
           , t1.purchase_det_id
           , t1.Release_id 
-          , t1.item_code
+          , t1.item_dotno
           , t2.item_name
-          , t2.base_unit 
-          , t2.purchase_unit 
-          , t2.incoming_inspection
           , t1.received_qty
           , t1.status
           , t1.lot_no 
@@ -2895,7 +3055,7 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_purchase_Release_det t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno 
         where Release_id = $1
         order by t1.idx asc
       `;
@@ -3004,7 +3164,7 @@ const apiModel = {
     
         data2.push(
           release_id,
-          proc.item_code,
+          proc.item_dotno,
           proc.release_qty,
           det_status,
         );
@@ -3013,7 +3173,7 @@ const apiModel = {
       const query2 = `
         INSERT INTO tb_purchase_return_det(
            return_id
-          , item_code
+          , item_dotno
           , return_qty
           , status
         ) values ${values.join(', ')}
@@ -3139,7 +3299,7 @@ const apiModel = {
     
         data2.push(
           releaseReturn_id,
-          proc.item_code,
+          proc.raw_code,
           proc.quantity,
           det_status,
         );
@@ -3148,7 +3308,7 @@ const apiModel = {
       const query2 = `
         INSERT INTO tb_purchase_receipt_det(
            receipt_id
-          , item_code
+          , raw_code
           , received_qty
           , status
         ) values ${values.join(', ')}
@@ -3249,40 +3409,43 @@ const apiModel = {
   getInventory: async (params) => {
     try {
  
-      const { item_code, item_name } = params;
+      const { raw_code, raw_name } = params;
       const data = [];
 
       let query = `
         select 
-          t1.idx 
-          , t1.item_code 
-          , t2.item_name 
-          , t1.warehouse_id 
-          , t1.lot_no 
-          , t1.quantity 
-          , t1.unit 
-          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
-          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
-        from tb_purchase_stock t1
-        left join tb_item t2 on t1.item_code = t2.item_code
+          t1.*
+          , coalesce(t2.quantity, 0) as quantity
+          , CASE
+            WHEN COALESCE(t1.right_qty, 0) <> 0 THEN 
+              CAST(
+                CAST(COALESCE(t2.quantity, 0) AS NUMERIC)
+                / CAST(COALESCE(t1.right_qty, 0) AS NUMERIC)
+                * 100
+                AS INT
+              )
+            ELSE 0
+            END AS stock_ratio
+          , cast(t1.right_qty as int) - COALESCE(t2.quantity, 0)  as chk_cnt 
+        from tb_raw t1
+        left join tb_raw_stock t2 on t1.raw_code = t2.raw_code 
         WHERE 1=1
-        and t1.quantity is not null
       `;
       let idx = 1;
 
-      // item_code 조건
-      if (item_code !== '') {
-        query += ` AND t1.item_code ILIKE $${idx++}`;
-        data.push(`%${item_code}%`);
+      // raw_code 조건
+      if (raw_code !== '') {
+        query += ` AND t1.raw_code ILIKE $${idx++}`;
+        data.push(`%${raw_code}%`);
       }
 
-      // item_name 조건
-      if (item_name !== '') {
-        query += ` AND t2.item_name ILIKE $${idx++}`;
-        data.push(`%${item_name}%`);
+      // raw_name 조건
+      if (raw_name !== '') {
+        query += ` AND t1.raw_name ILIKE $${idx++}`;
+        data.push(`%${raw_name}%`);
       }
 
-      query += ` order BY t1.item_code asc`;
+      query += ` order by chk_cnt desc, stock_qty desc`;
 
       const result = await pool.query(query, data);
       return result.rows; 
@@ -3292,27 +3455,28 @@ const apiModel = {
   },
 
 
+
   getInventoryDet: async (params) => {
     try {
  
-      const { item_code } = params;
-      const data = [item_code];
+      const { raw_code } = params;
+      const data = [raw_code];
 
       let query = `
         SELECT 
           t1.idx
           , t1.receipt_id
-          , t1.item_code
-          , t2.item_name 
+          , t1.raw_code
+          , t2.raw_name 
           , t1.warehouse_id
           , t1.lot_no
           , t1.changed_quantity
           , t1.change_type
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
-        FROM public.tb_purchase_stock_log t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
-        where t1.item_code = $1
+        FROM public.tb_raw_stock_log t1
+        left join tb_raw t2 on t1.raw_code = t2.raw_code 
+        where t1.raw_code = $1
         order by created_at desc
       `;
 
@@ -3427,11 +3591,8 @@ const apiModel = {
         SELECT 
           t1.idx
           , t1.order_id
-          , t1.item_code
+          , t1.item_dotno
           , t2.item_name
-          , t2.base_unit 
-          , t2.purchase_unit 
-          , t2.incoming_inspection
           , t1.quantity
           , t1.unit_price
           , t1.status
@@ -3444,7 +3605,7 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_sales_order_det t1
-        left join tb_item t2 on t1.item_code = t2.item_code 
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno 
         where order_id = $1
         order by t1.idx asc
       `;
@@ -3556,7 +3717,7 @@ const apiModel = {
     
         data2.push(
           purchase_id,
-          proc.item_code,
+          proc.item_dotno,
           proc.quantity,
           proc.unit_price,
           det_status,
@@ -3569,7 +3730,7 @@ const apiModel = {
       const query2 = `
         INSERT INTO tb_sales_order_det(
           order_id
-          , item_code
+          , item_dotno
           , quantity
           , unit_price
           , status
@@ -3636,6 +3797,523 @@ const apiModel = {
     
   },
 
+  // WorkOrder
+  getWorkOrder: async (params) => {
+    try {
+ 
+      const { start_date, end_date, item_dotno, item_name, work_id} = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          max(t1.idx) as idx
+          , max(t1.sales_id) as sales_id
+          , max(t1.work_id) as work_id
+          , max(t1.process_code) as process_code
+          , max(t2.process_name) as process_name
+          , max(t1.item_dotno) as item_dotno
+          , max(t3.item_name) as item_name
+          , max(TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS')) AS created_at
+        FROM tb_work_order t1
+        left join tb_process t2 on t1.process_code = t2.process_code 
+        left join tb_item t3 on t1.item_dotno = t3.item_dotno
+        where 1=1
+      `;
+      let idx = 1;
+      
+      // date 조건
+      if (start_date !== '' && end_date !== '') {
+        query += ` AND created_at BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // item_dotno 조건
+      if (item_dotno !== undefined && item_dotno !== '') {
+        query += ` AND item_dotno ILIKE $${idx++}`;
+        data.push(`%${item_dotno}%`);
+      }
+
+      // item_name 조건
+      if (item_name !== undefined && item_name !== '') {
+        query += ` AND item_name ILIKE $${idx++}`;
+        data.push(`%${item_name}%`);
+      }
+
+      // work_id 조건
+      if (work_id !== undefined && work_id !== '') {
+        query += ` AND work_id ILIKE $${idx++}`;
+        data.push(`%${work_id}%`);
+      }
+
+      query += ` GROUP BY work_id`;
+      query += ` ORDER BY idx desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getWorkOrderDet: async (params) => {
+    try {
+ 
+      const { work_id } = params;
+      const data = [work_id];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.sales_id
+          , t1.work_id
+          , t1.process_code
+          , t2.process_name 
+          , t1.item_dotno
+          , t3.item_name
+          , t1.worker_id
+          , t1.order_qty
+          , t1.start_date
+          , t1.start_time
+          , t1.end_date
+          , t1.end_time
+          , t1.status
+          , t1.created_by
+          , t1.updated_by
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+          , t1.remark
+        FROM tb_work_order t1
+        left join tb_process t2 on t1.process_code = t2.process_code 
+        left join tb_item t3 on t1.item_dotno = t3.item_dotno
+        where work_id = $1
+        order by t1.idx desc
+      `;
+
+      const result = await pool.query(query, data);
+      return result.rows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  
+  setWorkOrder: async (params) => {
+    try {
+      const query = `
+        UPDATE tb_work_order SET 
+            order_qty = $2
+          , status = $3
+          , start_date = $4
+          , start_time = $5
+          , end_date = $6
+          , end_time = $7
+          , remark = $8
+          , updated_by = 'test'
+          , updated_at = now()
+        WHERE idx = $1
+        RETURNING *
+      `;
+      const result = await pool.query(query, params);
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addWorkOrder: async (params) => {
+
+    const client = await pool.connect();
+
+    try {
+
+      const { 
+        work_id
+        , sel_row
+      } = params;
+
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const values = [];
+      const data2 = [];
+      sel_row.forEach((proc, index) => {
+        values.push(`(
+            $${index * 11 + 1}
+          , $${index * 11 + 2}
+          , $${index * 11 + 3}
+          , $${index * 11 + 4}
+          , $${index * 11 + 5}
+          , $${index * 11 + 6}
+          , $${index * 11 + 7}
+          , $${index * 11 + 8}
+          , $${index * 11 + 9}
+          , $${index * 11 + 10}
+          , $${index * 11 + 11}
+        )`);
+    
+        data2.push(
+          proc.order_id,
+          work_id,
+          proc.process_code,
+          proc.item_dotno,
+          proc.user_id,
+          proc.quantity,
+          proc.start_date,
+          proc.start_time,
+          proc.end_date,
+          proc.end_time,
+          proc.remark
+        );
+
+      });
+
+      const query2 = `
+        INSERT INTO tb_work_order(
+          sales_id
+          , work_id
+          , process_code
+          , item_dotno
+          , worker_id
+          , order_qty
+          , start_date
+          , start_time
+          , end_date
+          , end_time
+          , remark
+        ) values ${values.join(', ')}
+        RETURNING *
+      `;
+      const sql2 = await client.query(query2, data2);
+
+      // 커밋
+      await client.query('COMMIT');
+      const result = {
+        det: sql2.rows,
+      };
+      return result;
+
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+    }
+    finally {
+      // 커넥션 해제
+      client.release();
+    }
+  },
+
+  delWorkOrder: async (params) => {
+    const client = await pool.connect();
+
+    try {
+  
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const query = `
+        DELETE FROM tb_work_order WHERE idx = ANY($1)
+        RETURNING * 
+      `;
+      const sql1 = await client.query(query, params);
+
+     
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = sql1.rows;
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+    
+  },
+
+  // WorkResult
+  getWorkResult: async (params) => {
+    try {
+ 
+      const { idx, work_id} = params;
+      const data = [work_id];
+
+      let query = `
+        SELECT 
+          t1.idx as work_idx
+          , t1.work_id
+          , t1.process_code
+          , t2.process_name 
+          , t1.item_dotno
+          , t3.item_name
+          , t1.worker_id
+          , t1.order_qty
+          , t1.start_date
+          , t1.start_time
+          , t1.end_date
+          , t1.end_time
+          , t1.status
+          , t4.idx 
+          , t4.result_id 
+          , TO_CHAR( t4.start_dttm, 'YYYY-MM-DD HH24:MI:SS') AS start_dttm
+          , TO_CHAR( t4.end_dttm, 'YYYY-MM-DD HH24:MI:SS') AS end_dttm
+          , t4.result_qty
+          , t4.defect_qty
+          , t4.created_by
+          , t4.updated_by
+          , TO_CHAR(t4.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t4.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+          , t4.remark
+        FROM tb_work_order t1
+        left join tb_process t2 on t1.process_code = t2.process_code 
+        left join tb_item t3 on t1.item_dotno = t3.item_dotno
+        left join tb_work_result t4 on t1.idx = t4.work_idx and t1.work_id = t4.work_id
+        where 1=1
+        and t1.work_id = $1
+      `;
+      
+      query += ` ORDER BY t1.idx desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setWorkResult: async (params) => {
+    const client = await pool.connect();
+
+    try {
+      
+      const { 
+        type,
+        idx,
+        work_idx,
+        work_id,
+        result_id,
+        result_qty,
+        defect_qty,
+        start_dttm,
+        end_dttm,
+        remark,
+        oldValue,
+        newValue,
+      } = params;
+      
+      const data = [
+        work_idx
+        , work_id
+        , result_id
+        , result_qty
+        , defect_qty
+        , start_dttm
+        , end_dttm
+        , remark 
+      ];
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+      
+      const query = `
+        INSERT INTO tb_work_result(
+          work_idx
+          , work_id
+          , result_id
+          , result_qty
+          , defect_qty
+          , start_dttm
+          , end_dttm
+          , remark
+        ) values (
+          $1, $2, $3, $4, $5, $6, $7, $8
+        )
+        ON CONFLICT (work_idx, work_id)
+        DO UPDATE SET
+           result_qty = EXCLUDED.result_qty
+          , defect_qty = EXCLUDED.defect_qty
+          , start_dttm = EXCLUDED.start_dttm
+          , end_dttm = EXCLUDED.end_dttm
+          , remark = EXCLUDED.remark
+          , updated_by = 'test'
+          , updated_at = now()
+        RETURNING *
+      `;
+      const sql = await client.query(query, data);
+
+      if( type === 'result_qty' ) {
+        const chk_oldValue = oldValue || 0; // null, undefined, '' 처리
+        const change_value = newValue - chk_oldValue;
+
+        const query2 = `
+          INSERT INTO tb_work_result_log(
+            result_id
+            , change_qty
+          ) VALUES (
+            $1
+            , $2
+          )
+          RETURNING *
+        `;
+        await client.query(query2, [result_id, change_value]);
+      }
+
+      if( type === 'defect_qty' ) {
+        const chk_oldValue = oldValue || 0; // null, undefined, '' 처리
+        const change_value = newValue - chk_oldValue;
+
+        const query2 = `
+          INSERT INTO tb_work_defect_log(
+            result_id
+            , change_qty
+          ) VALUES (
+            $1
+            , $2
+          )
+          RETURNING *
+        `;
+        await client.query(query2, [result_id, change_value]);
+      }
+
+      // 커밋
+      await client.query('COMMIT');
+
+      const result = {
+        rows: sql.rows,
+      };
+
+      return result;
+
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+    }
+    finally {
+      // 커넥션 해제
+      client.release();
+    }
+  },
+
+  addWorkResult: async (params) => {
+
+    const client = await pool.connect();
+
+    try {
+
+      const { 
+        work_id
+        , sel_row
+      } = params;
+
+      
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const values = [];
+      const data2 = [];
+      sel_row.forEach((proc, index) => {
+        values.push(`(
+            $${index * 10 + 1}
+          , $${index * 10 + 2}
+          , $${index * 10 + 3}
+          , $${index * 10 + 4}
+          , $${index * 10 + 5}
+          , $${index * 10 + 6}
+          , $${index * 10 + 7}
+          , $${index * 10 + 8}
+          , $${index * 10 + 9}
+          , $${index * 10 + 10}
+        )`);
+    
+        data2.push(
+          work_id,
+          proc.process_code,
+          proc.item_dotno,
+          proc.user_id,
+          proc.quantity,
+          proc.start_date,
+          proc.start_time,
+          proc.end_date,
+          proc.end_time,
+          proc.remark
+        );
+
+      });
+
+      const query2 = `
+        INSERT INTO tb_work_result(
+          work_id
+          , process_code
+          , item_dotno
+          , worker_id
+          , result_qty
+          , start_date
+          , start_time
+          , end_date
+          , end_time
+          , remark
+        ) values ${values.join(', ')}
+        RETURNING *
+      `;
+      const sql2 = await client.query(query2, data2);
+
+      // 커밋
+      await client.query('COMMIT');
+      const result = {
+        det: sql2.rows,
+      };
+      return result;
+
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+    }
+    finally {
+      // 커넥션 해제
+      client.release();
+    }
+  },
+
+  delWorkResult: async (params) => {
+    const client = await pool.connect();
+
+    try {
+  
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const query = `
+        DELETE FROM tb_work_result WHERE idx = ANY($1)
+        RETURNING * 
+      `;
+      const sql1 = await client.query(query, params);
+
+      // 커밋
+      await client.query('COMMIT');
+      
+      const result = sql1.rows;
+
+      return result; 
+    } catch (error) {
+      // 에러 발생 시 롤백
+      await client.query("ROLLBACK");
+      throw new Error(error.message);
+
+    } finally {
+      // 커넥션 해제
+      client.release();
+    }
+    
+  },
 
 
 

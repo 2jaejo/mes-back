@@ -156,10 +156,18 @@ const userService = {
   setUserInfo: async (req) => {
     try {
       const { id } = req.user;
-      const { email, phone, addr, birthday } = req.body;
-      const params = [email, phone, addr, birthday, id];
+      const { pw, email, phone, addr, birthday } = req.body;
 
-      return await userModel.setUserInfo(params);
+      const params = {email, phone, addr, birthday};
+      if (pw && pw.trim() !== '' && pw !== undefined) {
+        // 비밀번호가 입력된 경우에만 추가
+        // 비밀번호 해시
+        const hashed_pw = await bcrypt.hash(pw, 10);
+        // params에 비밀번호 추가
+        params.user_pw = hashed_pw;
+      }
+
+      return await userModel.setUserInfo(id, params);
     } catch (error) {
       throw new Error(error.message);
     }

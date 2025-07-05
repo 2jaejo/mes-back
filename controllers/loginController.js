@@ -12,8 +12,8 @@ import userService from '../services/userService.js';
 
 // 토큰생성
 const generateTokens = (user) => {
-  const accessToken = jwt.sign({ id: user.user_id }, process.env.ACCESS_TOKEN_SECRET, {expiresIn: process.env.ACCESS_TOKEN_EXPIRES});
-  const refreshToken = jwt.sign({ id: user.user_id }, process.env.REFRESH_TOKEN_SECRET, {expiresIn: process.env.REFRESH_TOKEN_EXPIRES});
+  const accessToken = jwt.sign({ id: user.user_id, name:user.user_nm }, process.env.ACCESS_TOKEN_SECRET, {expiresIn: process.env.ACCESS_TOKEN_EXPIRES});
+  const refreshToken = jwt.sign({ id: user.user_id, name:user.user_nm }, process.env.REFRESH_TOKEN_SECRET, {expiresIn: process.env.REFRESH_TOKEN_EXPIRES});
   return { accessToken, refreshToken };
 };
 

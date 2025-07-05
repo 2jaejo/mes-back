@@ -2,12 +2,20 @@
 import express from 'express';
 import apiController from '../controllers/apiController.js';
 
+
 const router = express.Router();
 
 router.get('/getMenuList', apiController.getMenuList);
 
 router.post('/getDropDown', apiController.getDropDown);
 
+router.post('/scanBarcode', apiController.scanBarcode);
+
+router.post('/excelMapping', apiController.excelMapping);
+router.post('/setExcelMapping', apiController.setExcelMapping);
+router.post('/addExcelMapping', apiController.addExcelMapping);
+
+router.post('/getSheet', apiController.getSheet);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -28,6 +36,11 @@ router.post('/setItem', apiController.setItem);
 router.post('/addItem', apiController.addItem);
 router.post('/delItem', apiController.delItem);
 
+// Raw
+router.post('/getRaw', apiController.getRaw);
+router.post('/setRaw', apiController.setRaw);
+router.post('/addRaw', apiController.addRaw);
+router.post('/delRaw', apiController.delRaw);
 
 // price
 router.post('/getPrice', apiController.getPrice);
@@ -117,8 +130,10 @@ router.post('/setReceiptClose', apiController.setReceiptClose);
 router.post('/addReceipt', apiController.addReceipt);
 router.post('/delReceipt', apiController.delReceipt);
 
+
 // ReceiptLog
 router.post('/getReceiptLog', apiController.getReceiptLog);
+
 
 // ReceiptReturn
 router.post('/getReceiptReturn', apiController.getReceiptReturn);
@@ -137,6 +152,7 @@ router.post('/setReleaseDet', apiController.setReleaseDet);
 router.post('/addRelease', apiController.addRelease);
 router.post('/delRelease', apiController.delRelease);
 
+
 // ReleaseReturn
 router.post('/addReleaseReturn', apiController.addReleaseReturn);
 router.post('/setReleaseReturn', apiController.setReleaseReturn);
@@ -148,7 +164,6 @@ router.post('/getInventoryDet', apiController.getInventoryDet);
 router.post('/setInventory', apiController.setInventory);
 
 
-
 // SalesOrder
 router.post('/getSalesOrder', apiController.getSalesOrder);
 router.post('/getSalesOrderDet', apiController.getSalesOrderDet);
@@ -156,6 +171,21 @@ router.post('/setSalesOrder', apiController.setSalesOrder);
 router.post('/setSalesOrderDet', apiController.setSalesOrderDet);
 router.post('/addSalesOrder', apiController.addSalesOrder);
 router.post('/delSalesOrder', apiController.delSalesOrder);
+
+
+// WorkOrder
+router.post('/getWorkOrder', apiController.getWorkOrder);
+router.post('/getWorkOrderDet', apiController.getWorkOrderDet);
+router.post('/setWorkOrder', apiController.setWorkOrder);
+router.post('/addWorkOrder', apiController.addWorkOrder);
+router.post('/delWorkOrder', apiController.delWorkOrder);
+
+
+// WorkResult
+router.post('/getWorkResult', apiController.getWorkResult);
+router.post('/setWorkResult', apiController.setWorkResult);
+router.post('/addWorkResult', apiController.addWorkResult);
+router.post('/delWorkResult', apiController.delWorkResult);
 
 
 export default router;

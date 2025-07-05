@@ -3,7 +3,6 @@ import path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import { DEFAULT_PORT } from './config/serverConfig.js';  
@@ -31,8 +30,8 @@ app.use(cors({
   credentials: true
 })); // CORS, 서버는 클라이언트가 보낸 쿠키를 포함한 요청을 수락하도록 허용
 app.use(cookieParser());
-app.use(bodyParser.json()); // JSON 요청 본문 파싱
-app.use(bodyParser.urlencoded({ extended: true })); // URL-encoded 요청 본문 파싱
+app.use(bodyParser.json({ limit: '3mb' })); // JSON 요청 본문 파싱
+app.use(bodyParser.urlencoded({ extended: true, limit: '3mb'  })); // URL-encoded 요청 본문 파싱
 
 // 인증 제외
 app.use(authenticateToken.unless({
@@ -43,6 +42,11 @@ app.use(authenticateToken.unless({
   ]
 })); 
 
+app.use('/', indexRouter);
+app.use('/auth', loginRouter);
+app.use('/users', userRouter);
+app.use('/api', apiRouter);
+
 // 서버 실행
 const server = app.listen(PORT, () => {
   const address = server.address();
@@ -52,10 +56,6 @@ const server = app.listen(PORT, () => {
   console.log(`Server running at http://${host}:${port}/`);
 });
 
-app.use('/', indexRouter);
-app.use('/auth', loginRouter);
-app.use('/users', userRouter);
-app.use('/api', apiRouter);
 
 
 // WebSocketManager 생성
@@ -78,8 +78,6 @@ const callback = (id, val) => {
 // // 구독 리스너 추가
 await opcuaClient.addSubscriptionListener('ns=2;i=5', callback);
 await opcuaClient.addSubscriptionListener('ns=2;i=6', callback);
-
-
 
 
 // 종료 시 클라이언트 연결 해제
