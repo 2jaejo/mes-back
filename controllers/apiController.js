@@ -7,7 +7,81 @@ import fs from 'fs';
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
+import axios from 'axios';
+import dayjs from 'dayjs';
+
+const apikey = '0002689E06CE574CA459F260C2B6F46002000000650B8C6A0B52944DF5C1CC73978D9C6891D899E07C3E39BD931E5E4336BABE204996199A1EE593EDCDA3E6D01BEEFECE';
+const masterexcode = 'DIANG';
+const memberid = 'ABH001';
+
 const itemController = {
+
+  getOsmStockItemStorageList: async(req, res) => {
+    try {
+      const params = req.body;
+
+      const result = await axios.post(
+        'https://openapi-osm.basezone.co.kr/v1/stock/stockItmStorageList', 
+        params,
+        {
+          'headers':{
+            'Content-Type' : 'application/json',
+            'x-osm-apikey' : apikey,
+            'x-osm-masterexcode' : masterexcode,
+            'x-osm-memberid' : memberid,
+          }
+        }
+      );
+
+      res.status(200).json(result.data);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }  
+  },
+
+  getOsmOrderCustItemOrderList: async(req, res) => {
+    try {
+      const params = req.body;
+      params.stdate = dayjs(params.stdate).format("YYYYMMDD");
+      params.endate = dayjs(params.endate).format("YYYYMMDD");
+
+      console.log(params);
+      const result = await axios.post(
+        'https://openapi-osm.basezone.co.kr/v1/order/orderCustItemOrderList', 
+        params,
+        // {
+        //   "intNowPage": 1,
+        //   "maxCnt":0,
+        //   "dateValue": "3",
+        //   "stdate": "20250709",
+        //   "endate": "20250709",
+        //   "orderValue": "",
+        //   "transType": "",
+        //   "orderStatus": "",
+        //   "shipedStatus": "",
+        //   "cancelYn": "",
+        //   "storageName": "",
+        //   "mediaOrderNo01": "",
+        //   "mediaName": "",
+        //   "invoceNo": "",
+        //   "orderCode": ""
+        // },
+        {
+          'headers':{
+            'Content-Type' : 'application/json',
+            'x-osm-apikey' : apikey,
+            'x-osm-masterexcode' : masterexcode,
+            'x-osm-memberid' : memberid,
+          }
+        }
+      );
+
+      res.status(200).json(result.data);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }  
+  },
+
 
   getSheet: async (req, res) => {
     try {
@@ -20,10 +94,10 @@ const itemController = {
         key: keys.private_key,
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
-      const doc = new GoogleSpreadsheet('1S-xxAQqnhIot8oeUjTAFMWCfONueb0KsNKWi5sVMnXg', serviceAccountAuth);
-      // const doc = new GoogleSpreadsheet('1cWd9gQfaHOFeLyYRCNXX-8NVj4SF-5N-wwQNTQKaCgA', serviceAccountAuth);
+      // const doc = new GoogleSpreadsheet('1S-xxAQqnhIot8oeUjTAFMWCfONueb0KsNKWi5sVMnXg', serviceAccountAuth);
+      const doc = new GoogleSpreadsheet('1cWd9gQfaHOFeLyYRCNXX-8NVj4SF-5N-wwQNTQKaCgA', serviceAccountAuth);
       await doc.loadInfo(); // loads document properties and worksheets
-      const sheet = doc.sheetsByIndex[0]; // or use `doc.sheetsById[id]` or `doc.sheetsByTitle[title]`
+      const sheet = doc.sheetsByIndex[1]; // or use `doc.sheetsById[id]` or `doc.sheetsByTitle[title]`
 
       const rows = await sheet.getRows(); 
       const data = [];
@@ -811,7 +885,7 @@ const itemController = {
   addReceipt: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.addReceipt(data, req.user.name);
+      const result = await apiService.addReceipt(data, req.user);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -950,7 +1024,7 @@ const itemController = {
   addRelease: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.addRelease(data);
+      const result = await apiService.addRelease(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -1108,7 +1182,17 @@ const itemController = {
   setWorkOrder: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setWorkOrder(data);
+      const result = await apiService.setWorkOrder(data, req.user.name);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  setWorkOrderPlan: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setWorkOrderPlan(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -1118,7 +1202,7 @@ const itemController = {
   addWorkOrder: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.addWorkOrder(data);
+      const result = await apiService.addWorkOrder(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -1149,7 +1233,7 @@ const itemController = {
   setWorkResult: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setWorkResult(data);
+      const result = await apiService.setWorkResult(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -1165,7 +1249,7 @@ const itemController = {
       res.status(400).json({ message: error.message });
     }
   },
-
+  
   delWorkResult: async (req, res) => {
     try {      
       const data = req.body;
@@ -1175,8 +1259,40 @@ const itemController = {
       res.status(400).json({ message: error.message });
     }
   },
+  
+  // ProductionLog
+  getProductionLog: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getProductionLog(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addProductionLog: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.addProductionLog(data, req.user.name);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
+
+  // Report
+  getReportProcess: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.getReportProcess(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 
 
 }

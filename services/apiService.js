@@ -227,8 +227,12 @@ const apiService = {
 
   setRaw: async (params) => {
     try {
-      const { raw_id, raw_name, raw_type, raw_group, use_yn, comment } = params;
-      const data = [raw_name, raw_type, raw_group, use_yn, comment, raw_id];
+      const { idx, type_name, base_unit, unit_size, buyprice } = params;
+      let {right_qty} = params;
+      if(right_qty === '' || right_qty === undefined || right_qty === null){
+        right_qty = 0;
+      }
+      const data = [idx, type_name, base_unit, unit_size, buyprice, right_qty ];
       return await apiModel.setRaw(data);
     } catch (error) {
       throw new Error(error.message);
@@ -597,6 +601,13 @@ const apiService = {
   // Process
   getProcess: async (params) => {
     try {
+      const {type} = params;
+      if(type !== undefined && type === 'status'){
+        return await apiModel.getProcess2();
+      }
+      if(type !== undefined && type === 'router'){
+        return await apiModel.getProcess3();
+      }
       return await apiModel.getProcess(params);
     } catch (error) {
       throw new Error(error.message);
@@ -1089,13 +1100,13 @@ const apiService = {
     }
   },
 
-  addReceipt: async (params, name) => {
+  addReceipt: async (params, user) => {
     try {
       const id = await apiModel.generateTableId({prefix:'RV', table_name:'tb_purchase_receipt'});
       params.receipt_id = id.id;
       params.status = 'ready';
       params.det_status = 'pending';
-      return await apiModel.addReceipt(params, name);
+      return await apiModel.addReceipt(params, user);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1109,7 +1120,7 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const arr_ids = arr.map(el => el.receipt_id); // 필요한 키만 추출
       const data = [arr_ids];
 
       return await apiModel.delReceipt(data);
@@ -1277,13 +1288,13 @@ const apiService = {
     }
   },
 
-  addRelease: async (params) => {
+  addRelease: async (params, name) => {
     try {
       const id = await apiModel.generateTableId({prefix:'RS', table_name:'tb_purchase_return'});
       params.release_id = id.id;
       params.status = 'ready';
       params.det_status = 'pending';
-      return await apiModel.addRelease(params);
+      return await apiModel.addRelease(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1477,6 +1488,10 @@ const apiService = {
   // WorkOrder
   getWorkOrder: async (params) => {
     try {
+      const {type} = params;
+      if(type !== undefined && type === 'plan'){
+        return await apiModel.getWorkOrder2();
+      }
       return await apiModel.getWorkOrder(params);
     } catch (error) {
       throw new Error(error.message);
@@ -1491,7 +1506,7 @@ const apiService = {
     }
   },
 
-  setWorkOrder: async (params) => {
+  setWorkOrder: async (params, name) => {
     try {
       const { 
         idx
@@ -1515,20 +1530,28 @@ const apiService = {
         , remark
       ];
 
-      return await apiModel.setWorkOrder(data);
+      return await apiModel.setWorkOrder(data, name);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  setWorkOrderPlan: async (params, name) => {
+    try {
+
+      return await apiModel.setWorkOrderPlan(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  addWorkOrder: async (params) => {
+  addWorkOrder: async (params, name) => {
     try {
       const gen_id = await apiModel.generateTableId({prefix:'WO', table_name:'tb_work_order'});
       // console.log(gen_id);
       params.work_id = gen_id.id;
       params.status = 'ready';
       params.det_status = 'pending';
-      return await apiModel.addWorkOrder(params);
+      return await apiModel.addWorkOrder(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1554,17 +1577,25 @@ const apiService = {
   // WorkResult
   getWorkResult: async (params) => {
     try {
+      const {type} = params;
+      if(type !== undefined && type === 'list'){
+        return await apiModel.getWorkResult2(params);
+      }
+
+      if(type !== undefined && type === 'search'){
+        return await apiModel.getWorkResult3(params);
+      }
       return await apiModel.getWorkResult(params);
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  setWorkResult: async (params) => {
+  setWorkResult: async (params, name) => {
     try {
       const gen_id = await apiModel.generateTableId({prefix:'WR', table_name:'tb_work_result'});
       params.result_id = params.result_id || gen_id.id;  
-      return await apiModel.setWorkResult(params);
+      return await apiModel.setWorkResult(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1601,7 +1632,38 @@ const apiService = {
   },
 
 
+  // ProductionLog
+  getProductionLog: async (params) =>{
+    try {
+    
+      return await apiModel.getProductionLog(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
+  addProductionLog: async (params, name) =>{
+    try {
+      // const gen_id = await apiModel.generateTableId({prefix:'WR', table_name:'tb_work_result'});
+      // params.work_result_id = gen_id.id;
+      // params.status = 'ready';
+      // params.det_status = 'pending';
+      return await apiModel.addProductionLog(params, name);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  // Report
+  getReportProcess: async (params) =>{
+    try {
+    
+      return await apiModel.getReportProcess(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
 
 

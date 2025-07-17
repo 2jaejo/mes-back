@@ -1,8 +1,34 @@
 import { set } from 'mongoose';
 import pool from '../config/db.js';
+import { sql } from 'googleapis/build/src/apis/sql/index.js';
+
+
+// prefix + YYMMDD + 다섯자리(updated_at 카운터 + 1)
+const generateTableId = async (params) => {
+  try {
+    const {prefix, table_name} = params;
+    const query = `
+      SELECT 
+        '${prefix}' 
+          || TO_CHAR(NOW(), 'YYMMDDHH24MISS') 
+          || LPAD(CAST(EXTRACT(MILLISECONDS FROM NOW()) AS INTEGER)::text, 3, '0') 
+          || '-'
+          || LPAD( (COALESCE(COUNT(*), 0) + 1)::text, 3,'0')  as id
+        FROM ${table_name} 
+        WHERE updated_at::date = CURRENT_DATE 
+    `;
+    const result = await pool.query(query);
+    return result.rows[0]; 
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
 
 
 const apiModel = {
+
+  generateTableId,
 
   getMenuList: async (params) => {
     try {
@@ -227,28 +253,7 @@ const apiModel = {
 
   },   
 
-  // prefix + YYMMDD + 다섯자리(updated_at 카운터 + 1)
-  generateTableId: async (params) => {
-    try {
-      const {prefix, table_name} = params;
-      const query = `
-        SELECT 
-          '${prefix}' 
-            || TO_CHAR(NOW(), 'YYMMDDHH24MISS') 
-            || LPAD(CAST(EXTRACT(MILLISECONDS FROM NOW()) AS INTEGER)::text, 3, '0') 
-            || '-'
-            || LPAD( (COALESCE(COUNT(*), 0) + 1)::text, 3,'0')  as id
-          FROM ${table_name} 
-          WHERE updated_at::date = CURRENT_DATE 
-      `;
-      const result = await pool.query(query);
-      return result.rows[0]; 
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
-
-
+  
 
   // category
   getCategoryMst: async (params) => {
@@ -525,25 +530,12 @@ const apiModel = {
     try {
       const query = `
         UPDATE tb_raw SET 
-          item_name= $2
-          , item_type= $3
-          , item_group_a= $4
-          , item_group_b= $5
-          , base_unit= $6
-          , purchase_unit= $7
-          , default_warehouse= $8
-          , inspection_method= $9
-          , incoming_inspection= $10
-          , outgoing_inspection= $11
-          , standard_price= $12
-          , shelf_life_days= $13
-          , shelf_life_managed= $14
-          , lot_managed= $15
-          , use_yn= $16
-          , comment= $17
-          , item_status = $18
-          , updated_at=now()
-        WHERE item_dotno = $1
+           type_name = $2
+          , base_unit = $3
+          , unit_size = $4
+          , buyprice = $5
+          , right_qty = $6
+        WHERE idx = $1
         RETURNING *
       `;
       const result = await pool.query(query, params);
@@ -1224,6 +1216,67 @@ const apiModel = {
     }
   },
 
+  getProcess2: async () => {
+    try {
+ 
+      let query = `
+        SELECT 
+          tp.process_code
+          , tp.process_name
+          , tp.process_type
+          , tp.use_yn
+          , tcc.code_name as process_type_name
+          , two.work_id 
+          , two.item_code 
+          , ti.item_name 
+          , twr.work_idx 
+          , case 
+            WHEN twr.work_idx IS NULL THEN NULL
+              WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
+              ELSE 'unknown'
+            END AS status
+        FROM tb_process tp
+        left join tb_common_code tcc on tp.process_type = tcc.code and tcc.group_code = 'cd011'
+        LEFT JOIN tb_work_order two ON tp.process_code = two.process_code 
+          AND (two.start_date || ' ' || two.start_time)::timestamp <= now()
+          AND (two.end_date || ' ' || two.end_time)::timestamp >= now()
+        left join tb_item ti on two.item_code = ti.item_dotno 
+        left join tb_work_result twr on two.idx = twr.work_idx 
+        where tp.use_yn = 'Y'
+        order by tp.process_code;
+      `;
+
+      const result = await pool.query(query);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getProcess3: async () => {
+    try {
+ 
+      let query = `
+        SELECT
+          code as process_code
+          , code_name as process_name
+        FROM tb_common_code tcc 
+        where tcc.group_code = 'cd008' 
+
+      `;
+
+      const result = await pool.query(query);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   setProcess: async (params) => {
     try {
       const query = `
@@ -1354,14 +1407,14 @@ const apiModel = {
           , t1.router_code
           , t1.sort
           , t1.process_code
-          , t2.process_name
+          , tcc.code_name as process_name
           , t1.expected_time_min
           , t1.is_optional
           , t1."comment"
           , t1.created_at
           , t1.updated_at
         FROM tb_router_step t1
-        left join tb_process t2 on t1.process_code = t2.process_code
+        left join tb_common_code tcc on t1.process_code = tcc.code and tcc.group_code = 'cd008' 
         WHERE t1.router_code = $1
       `;
 
@@ -1564,8 +1617,8 @@ const apiModel = {
           t1.idx
           , t1.item_dotno
           , t2.item_name
-          , t1.material_code
-          , t3.item_dotno as material_name
+          , t1.material_code as raw_code
+          , t3.raw_name
           , t1.quantity
           , t1.unit
           , t1.sort
@@ -1574,7 +1627,7 @@ const apiModel = {
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM public.tb_bom t1
         left join tb_item t2 on t1.item_dotno = t2.item_dotno
-        left join tb_item t3 on t1.material_code = t3.item_dotno
+        left join tb_raw t3 on t1.material_code = t3.raw_code
         where t1.item_dotno = $1
         ORDER BY sort asc
       `;
@@ -1980,7 +2033,6 @@ const apiModel = {
           , t2.unit_size
           , t1.quantity
           , t1.unit_price
-          , t1.received_qty
           , t1.status
           , t1.comment
           , TO_CHAR(t1.due_date, 'YYYY-MM-DD') AS due_date
@@ -1989,9 +2041,28 @@ const apiModel = {
           , t1.total_price
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+          , COALESCE(t3.changed_quantity, 0) as received_qty
         FROM tb_purchase_det t1
         left join tb_raw t2 on t1.raw_code = t2.raw_code 
-        where purchase_id = $1
+        left join (
+          select 
+            max(t11.purchase_id) as purchase_id
+            , max(t11.raw_code) as raw_code 
+            , sum(trsl.changed_quantity) changed_quantity 
+          from (
+            select 
+              tpr.purchase_id 
+              , tprd.receipt_id
+              , tprd.raw_code
+            from tb_purchase_receipt tpr 
+            left join tb_purchase_receipt_det tprd on tpr.receipt_id = tprd.receipt_id
+            where tpr.purchase_id <> ''
+          ) as t11
+          left join tb_raw_stock_log trsl on t11.receipt_id = trsl.receipt_id and t11.raw_code = trsl.raw_code and trsl.change_type = 'IN'
+          where changed_quantity is not null
+          group by t11.purchase_id, t11.raw_code 
+        ) t3 on t1.purchase_id = t3.purchase_id and t1.raw_code = t3.raw_code
+        where t1.purchase_id = $1
         order by t1.idx asc
       `;
 
@@ -2418,7 +2489,7 @@ const apiModel = {
 
   },
 
-  addReceipt: async (params, name) => {
+  addReceipt: async (params, user) => {
 
     const client = await pool.connect();
 
@@ -2430,17 +2501,25 @@ const apiModel = {
         , client_code
         , receipt_date
         , comment
-        , user_id
         , status
         , det_status
         , sel_row
       } = params;
 
+      let { user_id } = params; 
+
+      if(user_id === '' || user_id === null ||  user_id === undefined){
+        user_id = user.id;
+      }
       
+      let sql1 = null;
+      let sql2 = null;
+
       // 트랜잭션 시작
       await client.query('BEGIN');
 
 
+  
       const data = [
         purchase_id
         , receipt_id
@@ -2470,13 +2549,13 @@ const apiModel = {
           , $5
           , $6
           , $7
-          , '${name}'
-          , '${name}'
+          , '${user.name}'
+          , '${user.name}'
         )
         RETURNING *
       `;
-      const sql1 = await client.query(query, data);
-
+      sql1 = await client.query(query, data);
+  
 
       const values = [];
       const data2 = [];
@@ -2508,14 +2587,14 @@ const apiModel = {
         RETURNING *
       `;
 
-      const sql2 = await client.query(query2, data2);
+      sql2 = await client.query(query2, data2);
 
      
       // 커밋
       await client.query('COMMIT');
       
       const result = {
-        mst: sql1.rows,
+        mst: sql1 ? sql1.rows : [], // 존재 안 하면 빈 배열
         det: sql2.rows,
       };
 
@@ -2540,16 +2619,26 @@ const apiModel = {
       await client.query('BEGIN');
 
       const query = `
-        DELETE FROM tb_purchase_receipt WHERE idx = ANY($1)
+        DELETE FROM tb_purchase_receipt WHERE receipt_id = ANY($1)
         RETURNING * 
       `;
       const sql1 = await client.query(query, params);
+
+      const query2 = `
+        DELETE FROM tb_purchase_receipt_det WHERE receipt_id = ANY($1)
+        RETURNING * 
+      `;
+      const sql2 = await client.query(query2, params);
 
      
       // 커밋
       await client.query('COMMIT');
       
-      const result = sql1.rows;
+
+      const result = {
+        mst:sql1.rows,
+        det: sql2.rows
+      };
 
       return result; 
     } catch (error) {
@@ -2643,7 +2732,7 @@ const apiModel = {
   getReceiptReturn: async (params) => {
     try {
  
-      const { start_date, end_date, client_code, client_name, return_id, type} = params;
+      const { start_date, end_date, return_id} = params;
       const data = [];
 
       let query = `
@@ -2670,7 +2759,7 @@ const apiModel = {
         left join (
             select
                 return_id 
-                , count(item_dotno) as item_count
+                , count(raw_code) as item_count
                 , sum(supply_price) as supply_price
                 , sum(tax) as tax
                 , sum(total_price) as total_price
@@ -2688,32 +2777,25 @@ const apiModel = {
         data.push(end_date);
       }
 
-      // client_code 조건
-      if (client_code !== '') {
-        query += ` AND t1.client_code ILIKE $${idx++}`;
-        data.push(`%${client_code}%`);
-      }
+      // // client_code 조건
+      // if (client_code !== '') {
+      //   query += ` AND t1.client_code ILIKE $${idx++}`;
+      //   data.push(`%${client_code}%`);
+      // }
 
-      // client_name 조건
-      if (client_name !== '') {
-        query += ` AND t2.client_name ILIKE $${idx++}`;
-        data.push(`%${client_name}%`);
-      }
+      // // client_name 조건
+      // if (client_name !== '') {
+      //   query += ` AND t2.client_name ILIKE $${idx++}`;
+      //   data.push(`%${client_name}%`);
+      // }
 
       // return_id 조건
-      if (return_id !== '') {
+      if (return_id !== '' && return_id !== undefined) {
         query += ` AND t1.return_id ILIKE $${idx++}`;
         data.push(`%${return_id}%`);
       }
 
-      // type 조건
-      if (type !== '' && type !== undefined) {
-        query += ` AND t1.client_code is null`;
-      }else{
-        query += ` AND t1.client_code is not null`;
-
-      }
-
+    
 
 
 
@@ -2738,8 +2820,10 @@ const apiModel = {
           t1.idx
           , t1.return_det_id
           , t1.return_id 
-          , t1.item_dotno
-          , t2.item_name
+          , t1.raw_code
+          , t2.raw_name
+          , t2.base_unit
+          , t2.unit_size
           , t1.return_qty
           , t1.status
           , t1.lot_no 
@@ -2753,7 +2837,7 @@ const apiModel = {
           , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_purchase_return_det t1
-        left join tb_item t2 on t1.item_dotno = t2.item_dotno 
+        left join tb_raw t2 on t1.raw_code = t2.raw_code 
         where return_id = $1
         order by t1.idx asc
       `;
@@ -3106,7 +3190,7 @@ const apiModel = {
   },
 
 
-  addRelease: async (params) => {
+  addRelease: async (params, name) => {
 
     const client = await pool.connect();
 
@@ -3142,12 +3226,16 @@ const apiModel = {
           , status
           , comment
           , manager
+          , created_by
+          , updated_by
         ) values (
           $1
           , $2
           , $3
           , $4
           , $5
+          , '${name}'
+          , '${name}'
         )
         RETURNING *
       `;
@@ -3164,7 +3252,7 @@ const apiModel = {
     
         data2.push(
           release_id,
-          proc.item_dotno,
+          proc.raw_code,
           proc.release_qty,
           det_status,
         );
@@ -3173,7 +3261,7 @@ const apiModel = {
       const query2 = `
         INSERT INTO tb_purchase_return_det(
            return_id
-          , item_dotno
+          , raw_code
           , return_qty
           , status
         ) values ${values.join(', ')}
@@ -3409,7 +3497,7 @@ const apiModel = {
   getInventory: async (params) => {
     try {
  
-      const { raw_code, raw_name } = params;
+      const { raw_code, raw_name, bar_code } = params;
       const data = [];
 
       let query = `
@@ -3434,18 +3522,24 @@ const apiModel = {
       let idx = 1;
 
       // raw_code 조건
-      if (raw_code !== '') {
+      if (raw_code !== '' && raw_code !== undefined) {
         query += ` AND t1.raw_code ILIKE $${idx++}`;
         data.push(`%${raw_code}%`);
       }
 
       // raw_name 조건
-      if (raw_name !== '') {
+      if (raw_name !== '' && raw_name !== undefined) {
         query += ` AND t1.raw_name ILIKE $${idx++}`;
         data.push(`%${raw_name}%`);
       }
 
-      query += ` order by chk_cnt desc, stock_qty desc`;
+      // bar_code 조건
+      if (bar_code !== '' && bar_code !== undefined) {
+        query += ` AND t1.bar_code ILIKE $${idx++}`;
+        data.push(`%${bar_code}%`);
+      }
+
+      query += ` order by chk_cnt desc, quantity desc`;
 
       const result = await pool.query(query, data);
       return result.rows; 
@@ -3801,52 +3895,70 @@ const apiModel = {
   getWorkOrder: async (params) => {
     try {
  
-      const { start_date, end_date, item_dotno, item_name, work_id} = params;
+      const { start_date, end_date, item_code, item_name, work_id} = params;
       const data = [];
 
       let query = `
         SELECT 
-          max(t1.idx) as idx
-          , max(t1.sales_id) as sales_id
-          , max(t1.work_id) as work_id
-          , max(t1.process_code) as process_code
-          , max(t2.process_name) as process_name
-          , max(t1.item_dotno) as item_dotno
-          , max(t3.item_name) as item_name
-          , max(TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS')) AS created_at
+          t1.idx
+          , t1.sales_id
+          , t1.work_id
+          , t1.process_code
+          , t2.process_name 
+          , t1.item_code
+          , t3.item_name
+          , t1.worker_id
+          , t1.order_qty
+          , t1.start_date
+          , t1.start_time
+          , t1.end_date
+          , t1.end_time
+          , t1.created_by
+          , t1.updated_by
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+          , t1.remark
+          , case 
+              WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
+              ELSE 'unknown'
+            END AS status
+          , case WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN false ELSE true end as editable
         FROM tb_work_order t1
         left join tb_process t2 on t1.process_code = t2.process_code 
-        left join tb_item t3 on t1.item_dotno = t3.item_dotno
+        left join tb_item t3 on t1.item_code = t3.item_dotno
+        left join tb_work_result twr on t1.idx = twr.work_idx
         where 1=1
       `;
       let idx = 1;
       
       // date 조건
-      if (start_date !== '' && end_date !== '') {
-        query += ` AND created_at BETWEEN $${idx++} AND $${idx++}`;
+      if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
+        query += ` AND t1.created_at BETWEEN $${idx++} AND $${idx++}`;
         data.push(start_date);
         data.push(end_date);
       }
 
-      // item_dotno 조건
-      if (item_dotno !== undefined && item_dotno !== '') {
-        query += ` AND item_dotno ILIKE $${idx++}`;
-        data.push(`%${item_dotno}%`);
+      // item_code 조건
+      if (item_code !== undefined && item_code !== '') {
+        query += ` AND t1.item_code ILIKE $${idx++}`;
+        data.push(`%${item_code}%`);
       }
 
       // item_name 조건
       if (item_name !== undefined && item_name !== '') {
-        query += ` AND item_name ILIKE $${idx++}`;
+        query += ` AND t1.item_name ILIKE $${idx++}`;
         data.push(`%${item_name}%`);
       }
 
       // work_id 조건
       if (work_id !== undefined && work_id !== '') {
-        query += ` AND work_id ILIKE $${idx++}`;
+        query += ` AND t1.work_id ILIKE $${idx++}`;
         data.push(`%${work_id}%`);
       }
 
-      query += ` GROUP BY work_id`;
       query += ` ORDER BY idx desc`;
 
       const result = await pool.query(query, data);
@@ -3855,6 +3967,36 @@ const apiModel = {
       throw new Error(error.message);
     }
   },
+
+  getWorkOrder2: async () => {
+    try {
+      let query = `
+        select 
+          two.*
+          , tp.process_name 
+          , ti.item_name 
+          , case 
+              WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
+              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
+              ELSE 'unknown'
+            END AS status
+        from tb_work_order two
+        left join tb_process tp on two.process_code = tp.process_code 
+        left join tb_item ti on two.item_code = ti.item_dotno
+        left join tb_work_result twr on two.idx = twr.work_idx 
+        WHERE two.start_date::timestamp <= CURRENT_DATE + INTERVAL '2 DAY'
+        AND two.end_date::timestamp >= CURRENT_DATE + INTERVAL '-1 DAY'
+      `;
+      
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
 
   getWorkOrderDet: async (params) => {
     try {
@@ -3869,7 +4011,7 @@ const apiModel = {
           , t1.work_id
           , t1.process_code
           , t2.process_name 
-          , t1.item_dotno
+          , t1.item_code
           , t3.item_name
           , t1.worker_id
           , t1.order_qty
@@ -3885,7 +4027,7 @@ const apiModel = {
           , t1.remark
         FROM tb_work_order t1
         left join tb_process t2 on t1.process_code = t2.process_code 
-        left join tb_item t3 on t1.item_dotno = t3.item_dotno
+        left join tb_item t3 on t1.item_code = t3.item_dotno
         where work_id = $1
         order by t1.idx desc
       `;
@@ -3898,7 +4040,7 @@ const apiModel = {
   },
 
   
-  setWorkOrder: async (params) => {
+  setWorkOrder: async (params, name) => {
     try {
       const query = `
         UPDATE tb_work_order SET 
@@ -3909,7 +4051,7 @@ const apiModel = {
           , end_date = $6
           , end_time = $7
           , remark = $8
-          , updated_by = 'test'
+          , updated_by = '${name}'
           , updated_at = now()
         WHERE idx = $1
         RETURNING *
@@ -3921,7 +4063,25 @@ const apiModel = {
     }
   },
 
-  addWorkOrder: async (params) => {
+  setWorkOrderPlan: async (params, name) => {
+    try {
+      const { id, ...rest } = params;
+
+      const setClause = Object.entries(rest)
+        .map(([key, value]) => `${key} = '${value}'`)
+        .join(', ');
+
+      const query = `UPDATE tb_work_order SET ${setClause} , updated_at = now(), updated_by = '${name}' WHERE idx = ${id};`;
+
+      const result = await pool.query(query);
+
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addWorkOrder: async (params, name) => {
 
     const client = await pool.connect();
 
@@ -3951,13 +4111,15 @@ const apiModel = {
           , $${index * 11 + 9}
           , $${index * 11 + 10}
           , $${index * 11 + 11}
+          , '${name}'
+          , '${name}'
         )`);
     
         data2.push(
           proc.order_id,
           work_id,
           proc.process_code,
-          proc.item_dotno,
+          proc.item_code,
           proc.user_id,
           proc.quantity,
           proc.start_date,
@@ -3974,7 +4136,7 @@ const apiModel = {
           sales_id
           , work_id
           , process_code
-          , item_dotno
+          , item_code
           , worker_id
           , order_qty
           , start_date
@@ -3982,6 +4144,8 @@ const apiModel = {
           , end_date
           , end_time
           , remark
+          , created_by
+          , updated_by
         ) values ${values.join(', ')}
         RETURNING *
       `;
@@ -4042,8 +4206,9 @@ const apiModel = {
   getWorkResult: async (params) => {
     try {
  
-      const { idx, work_id} = params;
-      const data = [work_id];
+
+      const { start_date, end_date, item_code, item_name, work_id} = params;
+      const data = [];
 
       let query = `
         SELECT 
@@ -4051,7 +4216,7 @@ const apiModel = {
           , t1.work_id
           , t1.process_code
           , t2.process_name 
-          , t1.item_dotno
+          , t1.item_code
           , t3.item_name
           , t1.worker_id
           , t1.order_qty
@@ -4059,27 +4224,59 @@ const apiModel = {
           , t1.start_time
           , t1.end_date
           , t1.end_time
-          , t1.status
           , t4.idx 
           , t4.result_id 
           , TO_CHAR( t4.start_dttm, 'YYYY-MM-DD HH24:MI:SS') AS start_dttm
           , TO_CHAR( t4.end_dttm, 'YYYY-MM-DD HH24:MI:SS') AS end_dttm
           , t4.result_qty
           , t4.defect_qty
-          , t4.created_by
-          , t4.updated_by
           , TO_CHAR(t4.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , t4.created_by
           , TO_CHAR(t4.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+          , t4.updated_by
           , t4.remark
+          , t4.pause
+          , case 
+              WHEN t4.start_dttm IS NULL AND t4.end_dttm IS NULL THEN 'ready'
+              WHEN t4.start_dttm IS NOT NULL AND t4.end_dttm IS NULL AND t4.pause = 'Y' THEN 'pause'
+              WHEN t4.start_dttm IS NOT NULL AND t4.end_dttm IS NULL AND t4.pause = 'N' THEN 'start'
+              WHEN t4.start_dttm IS NOT NULL AND t4.end_dttm IS NOT NULL THEN 'end'
+              ELSE 'unknown'
+            END AS status
         FROM tb_work_order t1
         left join tb_process t2 on t1.process_code = t2.process_code 
-        left join tb_item t3 on t1.item_dotno = t3.item_dotno
+        left join tb_item t3 on t1.item_code = t3.item_dotno
         left join tb_work_result t4 on t1.idx = t4.work_idx and t1.work_id = t4.work_id
         where 1=1
-        and t1.work_id = $1
       `;
+      let idx = 1;
       
-      query += ` ORDER BY t1.idx desc`;
+      // date 조건
+      if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
+        query += ` AND t1.created_at BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // item_code 조건
+      if (item_code !== undefined && item_code !== '') {
+        query += ` AND t1.item_code ILIKE $${idx++}`;
+        data.push(`%${item_code}%`);
+      }
+
+      // item_name 조건
+      if (item_name !== undefined && item_name !== '') {
+        query += ` AND t3.item_name ILIKE $${idx++}`;
+        data.push(`%${item_name}%`);
+      }
+
+      // work_id 조건
+      if (work_id !== undefined && work_id !== '') {
+        query += ` AND t1.work_id ILIKE $${idx++}`;
+        data.push(`%${work_id}%`);
+      }
+
+      query += ` ORDER BY work_idx desc`;
 
       const result = await pool.query(query, data);
       return result.rows;
@@ -4088,7 +4285,100 @@ const apiModel = {
     }
   },
 
-  setWorkResult: async (params) => {
+  getWorkResult2: async (params) => {
+    try {
+
+
+      let query = `
+        SELECT 
+          t1.idx as work_idx
+          , t1.work_id
+          , t1.item_code
+          , t3.item_name
+          , t1.process_code
+          , t2.process_name 
+          , t4.end_dttm
+        FROM tb_work_order t1
+        left join tb_process t2 on t1.process_code = t2.process_code 
+        left join tb_item t3 on t1.item_code = t3.item_dotno
+        left join tb_work_result t4 on t1.idx = t4.work_idx and t1.work_id = t4.work_id
+        WHERE t1.start_date::timestamp <= CURRENT_DATE
+        and t1.end_date::timestamp >= CURRENT_DATE
+      `;
+
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getWorkResult3: async (params) => {
+    try {
+
+      const { work_idx } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx as work_idx
+          , t1.sales_id
+          , t1.work_id
+          , t1.process_code
+          , t2.process_name 
+          , t1.item_code
+          , t3.item_name
+          , t1.worker_id
+          , t1.order_qty
+          , t1.start_date
+          , t1.start_time
+          , t1.end_date
+          , t1.end_time
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+          , t4.idx 
+          , t4.result_id 
+          , TO_CHAR( t4.start_dttm, 'YYYY-MM-DD HH24:MI:SS') AS start_dttm
+          , TO_CHAR( t4.end_dttm, 'YYYY-MM-DD HH24:MI:SS') AS end_dttm
+          , CASE 
+            WHEN start_dttm IS NULL OR end_dttm IS NULL THEN ''
+            ELSE CONCAT(
+              EXTRACT(day FROM t4.end_dttm - t4.start_dttm), '일 ',
+              LPAD(EXTRACT(hour FROM t4.end_dttm - t4.start_dttm)::text, 2, '0'), '시간 ',
+              LPAD(EXTRACT(minute FROM t4.end_dttm - t4.start_dttm)::text, 2, '0'), '분 ',
+              LPAD(FLOOR(EXTRACT(second FROM t4.end_dttm - t4.start_dttm))::text, 2, '0'), '초'
+            ) END as product_dttm
+          , t4.end_dttm - t4.start_dttm as product_dttm2
+          , t4.result_qty
+          , t4.defect_qty
+          , t4.created_by
+          , t4.updated_by
+          , TO_CHAR(t4.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+          , t4.remark
+          , t4.pause
+          , case 
+              WHEN t4.start_dttm IS NULL AND t4.end_dttm IS NULL THEN 'ready'
+              WHEN t4.start_dttm IS NOT NULL AND t4.end_dttm IS NULL AND t4.pause = 'Y' THEN 'pause'
+              WHEN t4.start_dttm IS NOT NULL AND t4.end_dttm IS NULL AND t4.pause = 'N' THEN 'start'
+              WHEN t4.start_dttm IS NOT NULL AND t4.end_dttm IS NOT NULL THEN 'end'
+              ELSE 'unknown'
+            END AS status
+        FROM tb_work_order t1
+        left join tb_process t2 on t1.process_code = t2.process_code 
+        left join tb_item t3 on t1.item_code = t3.item_dotno
+        left join tb_work_result t4 on t1.idx = t4.work_idx and t1.work_id = t4.work_id
+        WHERE t1.start_date::timestamp <= CURRENT_DATE
+        and t1.end_date::timestamp >= CURRENT_DATE
+        and t1.idx = '${work_idx}'
+      `;
+
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  setWorkResult: async (params, name) => {
     const client = await pool.connect();
 
     try {
@@ -4104,6 +4394,7 @@ const apiModel = {
         start_dttm,
         end_dttm,
         remark,
+        pause,
         oldValue,
         newValue,
       } = params;
@@ -4132,8 +4423,9 @@ const apiModel = {
           , start_dttm
           , end_dttm
           , remark
+          , created_by 
         ) values (
-          $1, $2, $3, $4, $5, $6, $7, $8
+          $1, $2, $3, $4, $5, $6, $7, $8, '${name}'
         )
         ON CONFLICT (work_idx, work_id)
         DO UPDATE SET
@@ -4142,7 +4434,8 @@ const apiModel = {
           , start_dttm = EXCLUDED.start_dttm
           , end_dttm = EXCLUDED.end_dttm
           , remark = EXCLUDED.remark
-          , updated_by = 'test'
+          , pause = '${pause}'
+          , updated_by = '${name}'
           , updated_at = now()
         RETURNING *
       `;
@@ -4313,6 +4606,146 @@ const apiModel = {
       client.release();
     }
     
+  },
+
+
+  // ProductionLog
+  getProductionLog: async (params) => {
+    try {
+      const { today } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.* 
+          , t2.item_name
+          , t2.bar_code
+        FROM tb_production_log t1
+        left join tb_item t2 on t1.item_dotno = t2.item_dotno
+        WHERE 1=1
+      `;
+      let idx = 1;
+
+
+      // today 조건
+      if (today !== '' && today !== undefined) {
+        query += ` AND production_dt = $${idx++}`;
+        data.push(`${today}`);
+      }
+
+      query += ` ORDER BY updated_at desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  addProductionLog: async (params, user_nm) => {
+    const client = await pool.connect();
+    try {
+  
+      // 트랜잭션 시작
+      await client.query('BEGIN');
+
+      const query = `
+        INSERT INTO tb_production_log (
+          production_dt,
+          item_usr_code,
+          item_dotno,
+          quantity,
+          created_by,
+          updated_by
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (production_dt, item_usr_code, item_dotno)
+        DO UPDATE SET 
+          quantity = tb_production_log.quantity + EXCLUDED.quantity,
+          updated_by = EXCLUDED.updated_by,
+          updated_at = NOW()
+        RETURNING *
+      `;
+
+      // array 전달
+      // for (const item of items) {
+      //   const { today, item_usr_code, item_dotno, quantity } = item;
+      //   const sql = await client.query(query, [today, item_usr_code, item_dotno, quantity, user_nm, user_nm]);
+      // }
+        
+      const { today, item_usr_code, item_dotno, quantity } = params;
+      const sql = await client.query(query, [today, item_usr_code, item_dotno, quantity, user_nm, user_nm]);
+
+      // 커밋
+      await client.query('COMMIT');
+      const result = sql.rows;
+
+      return result; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+  // Report
+  getReportProcess: async (params) => {
+    try {
+      const { date } = params;
+      const data = [date];
+
+      let query = `
+        WITH time_bounds AS (
+          SELECT 
+            $1 ::date AS base_date,
+              '09:00:00'::time without time zone AS work_start,
+              '17:00:00'::time without time zone AS work_end
+        ), 
+        prod_time AS (
+          SELECT 
+            t1.idx,
+              t1.work_id,
+              t1.process_code,
+              t1.item_code,
+              t11.item_name,
+              t1.worker_id,
+              t1.order_qty,
+              t1.start_date,
+              t1.start_time,
+              t1.end_date,
+              t1.end_time,
+              t2.result_id,
+              t2.start_dttm,
+              t2.end_dttm,
+              coalesce(t2.result_qty, 0) as result_qty,
+              coalesce(t2.defect_qty, 0 ) as defect_qty,
+              t2.pause,
+              GREATEST(t2.start_dttm, tb.base_date + tb.work_start) AS overlap_start,
+              LEAST(t2.end_dttm, tb.base_date + tb.work_end) AS overlap_end,
+              round(EXTRACT(epoch FROM LEAST(least(t2.end_dttm, tb.base_date + tb.work_end), now()) - GREATEST(t2.start_dttm, tb.base_date + tb.work_start)) / 60) AS prod_min,
+              round(EXTRACT(epoch FROM (tb.base_date + tb.work_end) - (tb.base_date + tb.work_start)) / 60) as total_min
+          FROM tb_work_order t1
+            left join tb_item t11 on t1.item_code = t11.item_dotno
+            LEFT JOIN tb_work_result t2 ON t1.idx = t2.work_idx AND t1.work_id::text = t2.work_id::text
+            CROSS JOIN time_bounds tb
+          WHERE t2.start_dttm <= (tb.base_date + tb.work_end) AND t2.end_dttm >= (tb.base_date + tb.work_start) or t2.end_dttm is null
+        )
+        select 
+          tp.process_code
+          , tp.process_name
+          , tp.process_type
+          , t1.*
+        from tb_process tp 
+        left join prod_time t1 on tp.process_code = t1.process_code
+        order by tp.process_code asc
+      `;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
   },
 
 

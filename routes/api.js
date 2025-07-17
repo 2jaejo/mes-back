@@ -15,7 +15,16 @@ router.post('/excelMapping', apiController.excelMapping);
 router.post('/setExcelMapping', apiController.setExcelMapping);
 router.post('/addExcelMapping', apiController.addExcelMapping);
 
+// 스마트저울 구글 시트
 router.post('/getSheet', apiController.getSheet);
+
+// osm api
+router.post('/getOsmStockItemStorageList', apiController.getOsmStockItemStorageList);
+router.post('/getOsmOrderCustItemOrderList', apiController.getOsmOrderCustItemOrderList);
+
+
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -177,6 +186,7 @@ router.post('/delSalesOrder', apiController.delSalesOrder);
 router.post('/getWorkOrder', apiController.getWorkOrder);
 router.post('/getWorkOrderDet', apiController.getWorkOrderDet);
 router.post('/setWorkOrder', apiController.setWorkOrder);
+router.post('/setWorkOrderPlan', apiController.setWorkOrderPlan);
 router.post('/addWorkOrder', apiController.addWorkOrder);
 router.post('/delWorkOrder', apiController.delWorkOrder);
 
@@ -186,6 +196,13 @@ router.post('/getWorkResult', apiController.getWorkResult);
 router.post('/setWorkResult', apiController.setWorkResult);
 router.post('/addWorkResult', apiController.addWorkResult);
 router.post('/delWorkResult', apiController.delWorkResult);
+
+// ProductionLog
+router.post('/getProductionLog', apiController.getProductionLog);
+router.post('/addProductionLog', apiController.addProductionLog);
+
+// Report
+router.post('/getReportProcess', apiController.getReportProcess);
 
 
 export default router;
