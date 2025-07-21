@@ -4668,14 +4668,19 @@ const apiModel = {
         RETURNING *
       `;
 
+      const query2 = `
+        SELECT register_production_with_stock_check($1, $2, $3, $4, $5, $6)
+      `;
+
       // array 전달
       // for (const item of items) {
       //   const { today, item_usr_code, item_dotno, quantity } = item;
       //   const sql = await client.query(query, [today, item_usr_code, item_dotno, quantity, user_nm, user_nm]);
       // }
+
         
       const { today, item_usr_code, item_dotno, quantity } = params;
-      const sql = await client.query(query, [today, item_usr_code, item_dotno, quantity, user_nm, user_nm]);
+      const sql = await client.query(query2, [today, item_usr_code, item_dotno, quantity, user_nm, user_nm]);
 
       // 커밋
       await client.query('COMMIT');
