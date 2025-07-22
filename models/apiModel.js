@@ -4725,10 +4725,15 @@ const apiModel = {
               coalesce(t2.result_qty, 0) as result_qty,
               coalesce(t2.defect_qty, 0 ) as defect_qty,
               t2.pause,
-              GREATEST(t2.start_dttm, tb.base_date + tb.work_start) AS overlap_start,
-              LEAST(t2.end_dttm, tb.base_date + tb.work_end) AS overlap_end,
-              round(EXTRACT(epoch FROM LEAST(least(t2.end_dttm, tb.base_date + tb.work_end), now()) - GREATEST(t2.start_dttm, tb.base_date + tb.work_start)) / 60) AS prod_min,
-              round(EXTRACT(epoch FROM (tb.base_date + tb.work_end) - (tb.base_date + tb.work_start)) / 60) as total_min
+              GREATEST( COALESCE(t2.start_dttm,  t1.start_date::date + t1.start_time::time), tb.base_date + tb.work_start) AS overlap_start,
+              LEAST(COALESCE(t2.end_dttm,  t1.end_date::date + t1.end_time::time), tb.base_date + tb.work_end) AS overlap_end,
+              ROUND(
+                EXTRACT(
+                  epoch FROM 
+                    (tb.base_date + tb.work_end) - (tb.base_date + tb.work_start)
+                ) / 60
+              )::integer AS total_min,
+              round(EXTRACT(epoch FROM LEAST(LEAST(COALESCE(t2.end_dttm,  t1.end_date::date + t1.end_time::time), tb.base_date + tb.work_end), now()) - GREATEST( COALESCE(t2.start_dttm,  t1.start_date::date + t1.start_time::time), tb.base_date + tb.work_start)) / 60::numeric)::integer AS prod_min
           FROM tb_work_order t1
             left join tb_item t11 on t1.item_code = t11.item_dotno
             LEFT JOIN tb_work_result t2 ON t1.idx = t2.work_idx AND t1.work_id::text = t2.work_id::text
