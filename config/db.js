@@ -15,7 +15,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
   max: 30,  // 최대 연결 수 (옵션)
-  idleTimeoutMillis: 15000,  // 연결이 유휴 상태일 때 종료되는 시간 (옵션)
+  idleTimeoutMillis: 30000,  // 연결이 유휴 상태일 때 종료되는 시간 (옵션)
   connectionTimeoutMillis: 3000,  // 연결할 때까지 기다리는 시간 (옵션)
 });
 

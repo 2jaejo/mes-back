@@ -181,7 +181,7 @@ const itemController = {
   addExcelMapping: async (req, res) => {
     try {
       const data = req.body;
-      const result = await apiService.addExcelMapping(data);
+      const result = await apiService.addExcelMapping(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -393,8 +393,7 @@ const itemController = {
   setClient: async (req, res) => {
     try {      
       const data = req.body;
-      data.user_nm = req.user.name; // 사용자 이름 추가
-      const result = await apiService.setClient(data);
+      const result = await apiService.setClient(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -652,7 +651,7 @@ const itemController = {
   addBom: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.addBom(data);
+      const result = await apiService.addBom(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -792,7 +791,7 @@ const itemController = {
   setOrder: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setOrder(data);
+      const result = await apiService.setOrder(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -961,7 +960,7 @@ const itemController = {
   setReceiptReturnClose: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setReceiptReturnClose(data);
+      const result = await apiService.setReceiptReturnClose(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -972,6 +971,16 @@ const itemController = {
     try {      
       const data = req.body;
       const result = await apiService.addReceiptReturn(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delReceiptReturn: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delReceiptReturn(data);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });

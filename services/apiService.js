@@ -61,10 +61,10 @@ const apiService = {
     }
   },
 
-  addExcelMapping: async (params) => {
+  addExcelMapping: async (params, name) => {
     try {
       console.log("addExcelMapping");
-      return await apiModel.addExcelMapping(params);
+      return await apiModel.addExcelMapping(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -359,23 +359,31 @@ const apiService = {
     }
   },
   
-  setClient: async (params) => {
+  setClient: async (params, name) => {
     try {
       const { 
-        user_nm
-        , idx
+         idx
+        , office_address
+        , office_address2
+        , phone
+        , mobile_phone
+        , fax
         , use_yn
         , comment
       } = params;
 
       const data = [
-        user_nm
-        , idx
+         idx
+        , office_address
+        , office_address2
+        , phone
+        , mobile_phone
+        , fax
         , use_yn
         , comment
       ];
 
-      return await apiModel.setClient(data);
+      return await apiModel.setClient(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -618,6 +626,7 @@ const apiService = {
     try {
       const { 
         process_code
+        , process_type
         , check_yn
         , use_yn
         , comment
@@ -625,6 +634,7 @@ const apiService = {
 
       const data = [
         process_code
+        , process_type
         , check_yn
         , use_yn
         , comment
@@ -795,7 +805,7 @@ const apiService = {
     }
   },
 
-  addBom: async (params) => {
+  addBom: async (params, name) => {
     try {
       const { 
         item_dotno
@@ -806,7 +816,7 @@ const apiService = {
         item_dotno
         , material_code
       ];
-      return await apiModel.addBom(data);
+      return await apiModel.addBom(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -952,7 +962,7 @@ const apiService = {
     }
   },
 
-  setOrder: async (params) => {
+  setOrder: async (params, name) => {
     try {
       const { 
         idx
@@ -966,7 +976,7 @@ const apiService = {
         , comment
       ];
 
-      return await apiModel.setOrder(data);
+      return await apiModel.setOrder(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1200,7 +1210,7 @@ const apiService = {
     }
   },
 
-  setReceiptReturnClose: async (params) => {
+  setReceiptReturnClose: async (params, name) => {
     try {
       const arr = params;
 
@@ -1208,7 +1218,7 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      return await apiModel.setReceiptReturnClose(params);
+      return await apiModel.setReceiptReturnClose(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1221,6 +1231,23 @@ const apiService = {
       params.status = 'ready';
       params.det_status = 'pending';
       return await apiModel.addReceiptReturn(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delReceiptReturn: async (params) => {
+    try {
+      const arr = params;
+      
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+      
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+      
+      return await apiModel.delReceiptReturn(data);
     } catch (error) {
       throw new Error(error.message);
     }

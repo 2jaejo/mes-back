@@ -151,6 +151,7 @@ router.post('/setReceiptReturn', apiController.setReceiptReturn);
 router.post('/setReceiptReturnDet', apiController.setReceiptReturnDet);
 router.post('/setReceiptReturnClose', apiController.setReceiptReturnClose);
 router.post('/addReceiptReturn', apiController.addReceiptReturn);
+router.post('/delReceiptReturn', apiController.delReceiptReturn);
 
 
 // Release 
