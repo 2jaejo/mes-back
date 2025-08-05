@@ -8,8 +8,8 @@ import bodyParser from 'body-parser';
 import { DEFAULT_PORT } from './config/serverConfig.js';  
 import authenticateToken from './utils/authenticateToken.js';  
 
-import WebSocketManager from './utils/webSocketManager.js';  
-import OPCUAClientModule from './utils/opcuaClientModule.js';  
+// import WebSocketManager from './utils/webSocketManager.js';  
+// import OPCUAClientModule from './utils/opcuaClientModule.js';  
 
 // 라우트 연결
 import indexRouter from './routes/index.js';
@@ -58,26 +58,26 @@ const server = app.listen(PORT, () => {
 
 
 
-// WebSocketManager 생성
-const wsm = new WebSocketManager(server);
+// // WebSocketManager 생성
+// const wsm = new WebSocketManager(server);
 
-// OPC UA 클라이언트 싱글톤 인스턴스 생성
-const opcuaClient = OPCUAClientModule.getInstance();
-// OPC UA 서버의 엔드포인트 URL
-const endpointUrl = "opc.tcp://localhost:8004/abhopcua/server/"; // 예시 서버 주소
-// OPC UA 클라이언트 연결
-await opcuaClient.connect(endpointUrl);
-// OPC UA 클라이언트 구독 생성
-await opcuaClient.createSubscription();
+// // OPC UA 클라이언트 싱글톤 인스턴스 생성
+// const opcuaClient = OPCUAClientModule.getInstance();
+// // OPC UA 서버의 엔드포인트 URL
+// const endpointUrl = "opc.tcp://localhost:8004/abhopcua/server/"; // 예시 서버 주소
+// // OPC UA 클라이언트 연결
+// await opcuaClient.connect(endpointUrl);
+// // OPC UA 클라이언트 구독 생성
+// await opcuaClient.createSubscription();
 
-// 구독 이벤트 콜백 함수
-const callback = (id, val) => {
-  wsm.sensorData[id] = val;
-};
+// // 구독 이벤트 콜백 함수
+// const callback = (id, val) => {
+//   wsm.sensorData[id] = val;
+// };
 
-// // 구독 리스너 추가
-await opcuaClient.addSubscriptionListener('ns=2;i=5', callback);
-await opcuaClient.addSubscriptionListener('ns=2;i=6', callback);
+// // // 구독 리스너 추가
+// await opcuaClient.addSubscriptionListener('ns=2;i=5', callback);
+// await opcuaClient.addSubscriptionListener('ns=2;i=6', callback);
 
 
 // 종료 시 클라이언트 연결 해제

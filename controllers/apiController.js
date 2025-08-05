@@ -297,7 +297,7 @@ const itemController = {
   setRaw: async (req, res) => { 
     try {
       const data = req.body;
-      const result = await apiService.setRaw(data);
+      const result = await apiService.setRaw(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -641,7 +641,7 @@ const itemController = {
   setBom: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setBom(data);
+      const result = await apiService.setBom(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -801,7 +801,7 @@ const itemController = {
   setOrderDet: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setOrderDet(data);
+      const result = await apiService.setOrderDet(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -894,14 +894,12 @@ const itemController = {
   delReceipt: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.delReceipt(data);
+      const result = await apiService.delReceipt(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
   },
-
-
 
 
   // ReceiptLog
@@ -980,7 +978,7 @@ const itemController = {
   delReceiptReturn: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.delReceiptReturn(data);
+      const result = await apiService.delReceiptReturn(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -1094,6 +1092,26 @@ const itemController = {
     }
   },
 
+  setInventoryDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.setInventoryDet(data, req.user.name);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delInventoryDet: async (req, res) => {
+    try {      
+      const data = req.body;
+      const result = await apiService.delInventoryDet(data, req.user.name);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
   setInventory: async (req, res) => {
     try {      
       const data = req.body;
@@ -1130,7 +1148,7 @@ const itemController = {
   setSalesOrder: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setSalesOrder(data);
+      const result = await apiService.setSalesOrder(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -1140,7 +1158,7 @@ const itemController = {
   setSalesOrderDet: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.setSalesOrderDet(data);
+      const result = await apiService.setSalesOrderDet(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -1150,7 +1168,7 @@ const itemController = {
   addSalesOrder: async (req, res) => {
     try {      
       const data = req.body;
-      const result = await apiService.addSalesOrder(data);
+      const result = await apiService.addSalesOrder(data, req.user.name);
       res.status(200).json(result);
     } catch (error) {
       res.status(400).json({ message: error.message });

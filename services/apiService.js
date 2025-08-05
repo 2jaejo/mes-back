@@ -225,14 +225,14 @@ const apiService = {
     }
   },
 
-  setRaw: async (params) => {
+  setRaw: async (params, name) => {
     try {
       const { idx, type_name, base_unit, unit_size, buyprice } = params;
       let {right_qty} = params;
       if(right_qty === '' || right_qty === undefined || right_qty === null){
         right_qty = 0;
       }
-      const data = [idx, type_name, base_unit, unit_size, buyprice, right_qty ];
+      const data = [idx, type_name, base_unit, unit_size, buyprice, right_qty, name ];
       return await apiModel.setRaw(data);
     } catch (error) {
       throw new Error(error.message);
@@ -362,7 +362,7 @@ const apiService = {
   setClient: async (params, name) => {
     try {
       const { 
-         idx
+         idx    
         , office_address
         , office_address2
         , phone
@@ -370,6 +370,7 @@ const apiService = {
         , fax
         , use_yn
         , comment
+        , client_name
       } = params;
 
       const data = [
@@ -381,6 +382,7 @@ const apiService = {
         , fax
         , use_yn
         , comment
+        , client_name
       ];
 
       return await apiModel.setClient(data, name);
@@ -781,7 +783,7 @@ const apiService = {
     }
   },
 
-  setBom: async (params) => {
+  setBom: async (params, name) => {
     try {
       const { 
         idx
@@ -797,6 +799,7 @@ const apiService = {
         , unit
         , sort
         , comment
+        , name
       ];
 
       return await apiModel.setBom(data);
@@ -807,16 +810,8 @@ const apiService = {
 
   addBom: async (params, name) => {
     try {
-      const { 
-        item_dotno
-        , material_code
-      } = params;
-
-      const data = [
-        item_dotno
-        , material_code
-      ];
-      return await apiModel.addBom(data, name);
+  
+      return await apiModel.addBom(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -982,25 +977,27 @@ const apiService = {
     }
   },
 
-  setOrderDet: async (params) => {
+  setOrderDet: async (params, name) => {
     try {
       const { 
         idx
-        , status
-        , received_qty
+        , quantity
+        , unit_price
+        , total_price
         , due_date
         , comment
       } = params;
 
       const data = [
         idx
-        , status
-        , received_qty
+        , quantity
+        , unit_price
+        , total_price
         , due_date
         , comment
       ];
 
-      return await apiModel.setOrderDet(data);
+      return await apiModel.setOrderDet(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1122,7 +1119,7 @@ const apiService = {
     }
   },
 
-  delReceipt: async (params) => {
+  delReceipt: async (params, name) => {
     try {
       const arr = params;
 
@@ -1133,7 +1130,7 @@ const apiService = {
       const arr_ids = arr.map(el => el.receipt_id); // 필요한 키만 추출
       const data = [arr_ids];
 
-      return await apiModel.delReceipt(data);
+      return await apiModel.delReceipt(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1236,7 +1233,7 @@ const apiService = {
     }
   },
 
-  delReceiptReturn: async (params) => {
+  delReceiptReturn: async (params, name) => {
     try {
       const arr = params;
       
@@ -1244,10 +1241,10 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
       
-      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const arr_ids = arr.map(el => el.return_id); // 필요한 키만 추출
       const data = [arr_ids];
       
-      return await apiModel.delReceiptReturn(data);
+      return await apiModel.delReceiptReturn(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1396,6 +1393,22 @@ const apiService = {
     }
   },
 
+  setInventoryDet: async (params, name) => {
+    try {
+      return await apiModel.setInventoryDet(params, name);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delInventoryDet: async (params, name) => {
+    try {
+      return await apiModel.delInventoryDet(params, name);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   setInventory: async (params) => {
     try {
       const { 
@@ -1438,7 +1451,7 @@ const apiService = {
     }
   },
 
-  setSalesOrder: async (params) => {
+  setSalesOrder: async (params, name) => {
     try {
       const { 
         idx
@@ -1452,13 +1465,13 @@ const apiService = {
         , comment
       ];
 
-      return await apiModel.setSalesOrder(data);
+      return await apiModel.setSalesOrder(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  setSalesOrderDet: async (params) => {
+  setSalesOrderDet: async (params, name) => {
     try {
       const { 
         idx
@@ -1476,20 +1489,20 @@ const apiService = {
         , comment
       ];
 
-      return await apiModel.setSalesOrderDet(data);
+      return await apiModel.setSalesOrderDet(data, name);
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  addSalesOrder: async (params) => {
+  addSalesOrder: async (params, name) => {
     try {
       const gen_id = await apiModel.generateTableId({prefix:'SO', table_name:'tb_sales_order'});
       // console.log(gen_id);
-      params.purchase_id = gen_id.id;
+      params.sales_id = gen_id.id;
       params.status = 'ready';
       params.det_status = 'pending';
-      return await apiModel.addSalesOrder(params);
+      return await apiModel.addSalesOrder(params, name);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1503,7 +1516,7 @@ const apiService = {
         return res.status(400).json({ message: '배열이 필요합니다.' });
       }
     
-      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const arr_ids = arr.map(el => el.sales_id); // 필요한 키만 추출
       const data = [arr_ids];
 
       return await apiModel.delSalesOrder(data);
@@ -1562,6 +1575,7 @@ const apiService = {
       throw new Error(error.message);
     }
   },
+
   setWorkOrderPlan: async (params, name) => {
     try {
 

@@ -24,8 +24,6 @@ router.post('/getOsmOrderCustItemOrderList', apiController.getOsmOrderCustItemOr
 
 
 
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //기준정보관리
@@ -153,7 +151,6 @@ router.post('/setReceiptReturnClose', apiController.setReceiptReturnClose);
 router.post('/addReceiptReturn', apiController.addReceiptReturn);
 router.post('/delReceiptReturn', apiController.delReceiptReturn);
 
-
 // Release 
 router.post('/getRelease', apiController.getRelease);
 router.post('/getReleaseDet', apiController.getReleaseDet);
@@ -171,6 +168,8 @@ router.post('/setReleaseReturn', apiController.setReleaseReturn);
 // Inventory
 router.post('/getInventory', apiController.getInventory);
 router.post('/getInventoryDet', apiController.getInventoryDet);
+router.post('/setInventoryDet', apiController.setInventoryDet);
+router.post('/delInventoryDet', apiController.delInventoryDet);
 router.post('/setInventory', apiController.setInventory);
 
 
