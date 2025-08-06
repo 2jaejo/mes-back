@@ -10,13 +10,22 @@ const generateTableId = async (params) => {
     const query = `
       SELECT 
         '${prefix}' 
-          || TO_CHAR(NOW(), 'YYMMDDHH24MISS') 
+          || TO_CHAR(NOW(), 'YYMMDD') 
           || LPAD(CAST(EXTRACT(MILLISECONDS FROM NOW()) AS INTEGER)::text, 3, '0') 
-          || '-'
           || LPAD( (COALESCE(COUNT(*), 0) + 1)::text, 3,'0')  as id
         FROM ${table_name} 
         WHERE updated_at::date = CURRENT_DATE 
     `;
+    // const query = `
+    //   SELECT 
+    //     '${prefix}' 
+    //       || TO_CHAR(NOW(), 'YYMMDDHH24MISS') 
+    //       || LPAD(CAST(EXTRACT(MILLISECONDS FROM NOW()) AS INTEGER)::text, 3, '0') 
+    //       || '-'
+    //       || LPAD( (COALESCE(COUNT(*), 0) + 1)::text, 3,'0')  as id
+    //     FROM ${table_name} 
+    //     WHERE updated_at::date = CURRENT_DATE 
+    // `;
     const result = await pool.query(query);
     return result.rows[0]; 
   } catch (error) {
@@ -2762,40 +2771,17 @@ const apiModel = {
       `;
       const sql2 = await client.query(query2, params);
 
+
       const completedItems = sql2.rows.filter(row => row.status === 'complete');
-      const completed_stock = [];
-      const completed_log = [];
+      const arr_ids = completedItems.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
 
-      // 3. 각 항목에 대해 tb_raw 수량 차감
-      for (const item of completedItems) {
-        const stock_sql = `
-          INSERT INTO tb_raw_stock (
-            raw_code
-            , quantity
-          ) VALUES (
-            $1
-            , $2
-          )
-          ON CONFLICT (raw_code)
-          DO UPDATE SET quantity = tb_raw_stock.quantity - EXCLUDED.quantity
-          RETURNING *
-        `;
-        const res = await client.query(stock_sql, [item.raw_code, item.received_qty]);
-        if (res.rows.length > 0) {
-          completed_stock.push(res.rows[0]);
-        }
+      const query3 = `
+        SELECT update_receipt_stock2($1::int[], 'IN', '${name}')
+      `;
 
-        const log_sql = `
-          INSERT INTO tb_raw_stock_log (receipt_id, raw_code, changed_quantity, change_type, created_by)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING *
-        `;
-        const res2 = await client.query(log_sql, [item.receipt_id, item.raw_code, -Math.abs(item.received_qty), 'IN', name]);
-        if (res2.rows.length > 0) {
-          completed_log.push(res2.rows[0]);
-        }
+      const sql3 = await client.query(query3, data);
 
-      }
 
       // 커밋
       await client.query('COMMIT');
@@ -2804,8 +2790,7 @@ const apiModel = {
       const result = {
         mst:sql1.rows,
         det: sql2.rows,
-        stock: completed_stock,
-        log: completed_log,
+        stock: sql3.rows
       };
       return result;
 
@@ -2842,6 +2827,7 @@ const apiModel = {
             , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS receipt_date
             , t1.created_at
             , t1.created_by
+            , t1.requested_quantity
         FROM tb_raw_stock_log t1 
         left join tb_raw t2 on t1.raw_code = t2.raw_code
         WHERE 1=1
@@ -3246,39 +3232,15 @@ const apiModel = {
       const sql2 = await client.query(query2, params);
 
       const completedItems = sql2.rows.filter(row => row.status === 'complete');
-      const completed_stock = [];
-      const completed_log = [];
+      const arr_ids = completedItems.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
 
-      // 3. 각 항목에 대해 tb_raw 수량 차감
-      for (const item of completedItems) {
-        const stock_sql = `
-          INSERT INTO tb_raw_stock (
-            raw_code
-            , quantity
-          ) VALUES (
-            $1
-            , $2
-          )
-          ON CONFLICT (raw_code)
-          DO UPDATE SET quantity = tb_raw_stock.quantity + EXCLUDED.quantity
-          RETURNING *
-        `;
-        const res = await client.query(stock_sql, [item.raw_code, item.return_qty]);
-        if (res.rows.length > 0) {
-          completed_stock.push(res.rows[0]);
-        }
+      const query3 = `
+        SELECT update_receipt_stock2($1::int[], 'OUT', '${name}')
+      `;
 
-        const log_sql = `
-          INSERT INTO tb_raw_stock_log (receipt_id, raw_code, changed_quantity, change_type, created_by)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING *
-        `;
-        const res2 = await client.query(log_sql, [item.return_id, item.raw_code, item.return_qty, 'OUT', name]);
-        if (res2.rows.length > 0) {
-          completed_log.push(res2.rows[0]);
-        }
+      const sql3 = await client.query(query3, data);
 
-      }
 
       // 커밋
       await client.query('COMMIT');
@@ -3287,10 +3249,8 @@ const apiModel = {
       const result = {
         mst:sql1.rows,
         det: sql2.rows,
-        stock: completed_stock,
-        log: completed_log,
+        stock: sql3.rows
       };
-
       return result;
 
     } catch (error) {
@@ -4309,7 +4269,7 @@ const apiModel = {
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
-              ELSE 'unknown'
+              ELSE ''
             END AS status
           , case WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN false ELSE true end as editable
         FROM tb_work_order t1
@@ -5054,27 +5014,23 @@ const apiModel = {
       // 트랜잭션 시작
       await client.query('BEGIN');
       
-      const query = `
-        INSERT INTO tb_production_log (
-          production_dt,
-          item_usr_code,
-          item_dotno,
-          quantity,
-          remark,
-          created_by,
-          updated_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (production_dt, item_usr_code, item_dotno)
-        DO UPDATE SET 
-          quantity = tb_production_log.quantity + EXCLUDED.quantity,
-          updated_by = EXCLUDED.updated_by,
-          updated_at = NOW()
-        RETURNING *
-      `;
-
-      const query2 = `
-        SELECT register_production_with_stock_check($1, $2, $3, $4, $5, $6, $7, $8);
-      `;
+      // const query = `
+      //   INSERT INTO tb_production_log (
+      //     production_dt,
+      //     item_usr_code,
+      //     item_dotno,
+      //     quantity,
+      //     remark,
+      //     created_by,
+      //     updated_by
+      //   ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      //   ON CONFLICT (production_dt, item_usr_code, item_dotno)
+      //   DO UPDATE SET 
+      //     quantity = tb_production_log.quantity + EXCLUDED.quantity,
+      //     updated_by = EXCLUDED.updated_by,
+      //     updated_at = NOW()
+      //   RETURNING *
+      // `;
 
       // array 전달
       // for (const item of items) {
@@ -5082,8 +5038,12 @@ const apiModel = {
       //   const sql = await client.query(query, [today, item_usr_code, item_dotno, quantity, user_nm, user_nm]);
       // }
 
+
+      const query2 = `
+        SELECT register_production_with_stock_check($1, $2, $3, $4, $5, $6, $7);
+      `;
         
-      const sql = await client.query(query2, [today, item_usr_code, item_dotno, quantity, remark, user_nm, user_nm, bom_yn]);
+      const sql = await client.query(query2, [today, item_usr_code, item_dotno, quantity, remark, user_nm, bom_yn]);
 
       // 커밋
       await client.query('COMMIT');
