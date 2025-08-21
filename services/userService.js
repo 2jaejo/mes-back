@@ -55,7 +55,6 @@ const userService = {
 
   delUser: async (req) => {
     try {
-      console.log(req.body);
       const { user_id, user_nm } = req.body;
       const params = [user_id];
 

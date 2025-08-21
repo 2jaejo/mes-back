@@ -13,6 +13,9 @@ router.get('/validate', loginController.validate);
 // 로그인
 router.post('/login', loginController.login);
 
+// 회원가입
+router.post('/join', loginController.join);
+
 // 로그아웃
 router.post('/logout', loginController.logout);
 

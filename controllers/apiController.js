@@ -14,7 +14,30 @@ const apikey = '0002689E06CE574CA459F260C2B6F46002000000650B8C6A0B52944DF5C1CC73
 const masterexcode = 'DIANG';
 const memberid = 'ABH001';
 
+
+
+
+
+
+
+
+
+
+
 const itemController = {
+
+  testApi: async(req, res) => {
+    try {
+
+      const result = {
+        result:"test"
+      }
+
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }  
+  },
 
   getOsmStockItemStorageList: async(req, res) => {
     try {

@@ -100,9 +100,6 @@ const loginController = {
   join: async (req, res) => {
     try {
 
-      // 비밀번호 해시
-      // const hashedPassword = await bcrypt.hash(password, 10);
-
       const result = await userService.addUser(req);
       res.status(200).json(result);
       

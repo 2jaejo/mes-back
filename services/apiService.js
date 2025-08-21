@@ -777,7 +777,7 @@ const apiService = {
   // Bom
   getBom: async (params) => {
     try {
-      return await apiModel.getBom(params);
+      return await apiModel.getBom2(params);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1528,9 +1528,9 @@ const apiService = {
   // WorkOrder
   getWorkOrder: async (params) => {
     try {
-      const {type} = params;
+      const {type, date} = params;
       if(type !== undefined && type === 'plan'){
-        return await apiModel.getWorkOrder2();
+        return await apiModel.getWorkOrder2(date);
       }
       return await apiModel.getWorkOrder(params);
     } catch (error) {

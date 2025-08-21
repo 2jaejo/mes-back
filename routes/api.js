@@ -5,6 +5,8 @@ import apiController from '../controllers/apiController.js';
 
 const router = express.Router();
 
+router.post('/testApi', apiController.testApi);
+
 router.get('/getMenuList', apiController.getMenuList);
 
 router.post('/getDropDown', apiController.getDropDown);
