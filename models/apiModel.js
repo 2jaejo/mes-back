@@ -1287,6 +1287,7 @@ const apiModel = {
           , TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
         FROM tb_process
         WHERE 1=1
+        and use_yn = 'Y'
       `;
       let idx = 1;
       
@@ -1344,7 +1345,7 @@ const apiModel = {
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
-              ELSE 'empty'
+              ELSE 'start'
             END AS status
         FROM tb_process tp
         left join tb_common_code tcc on tp.process_type = tcc.code and tcc.group_code = 'cd011'
@@ -2962,6 +2963,7 @@ const apiModel = {
             , t1.created_at
             , t1.created_by
             , t1.requested_quantity
+            , t1.remarks
         FROM tb_raw_stock_log t1 
         left join tb_raw t2 on t1.raw_code = t2.raw_code
         WHERE 1=1
@@ -4163,9 +4165,11 @@ const apiModel = {
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
           , t1.created_by
           , t1.updated_by
+          , case when t3.idx is null then 'N' else 'Y' end as order_yn
         FROM tb_sales_order_det t1
         left join tb_item t2 on t1.item_dotno = t2.item_dotno 
-        where sales_id = $1
+        left join tb_work_order t3 on t1.sales_id = t3.sales_id
+        where t1.sales_id = $1
         order by t1.idx asc
       `;
 
@@ -4697,7 +4701,7 @@ const apiModel = {
     try {
  
 
-      const { start_date, end_date, item_code, item_name, work_id} = params;
+      const { start_date, end_date, item_code, item_name, work_id, status} = params;
       const data = [];
 
       let query = `
@@ -4738,11 +4742,22 @@ const apiModel = {
         FROM tb_work_order t1
         left join tb_process t2 on t1.process_code = t2.process_code 
         left join tb_item t3 on t1.item_code = t3.item_dotno
-        left join tb_work_result t4 on t1.idx = t4.work_idx and t1.work_id = t4.work_id
+        left join tb_work_result t4 on t1.idx = t4.work_idx and t1.work_id = t4.work_id 
         left join tb_user t5 on t1.worker_id = t5.user_id
         where 1=1
       `;
       let idx = 1;
+
+      // status 조건
+      if (status !== undefined && status === 'Y') {
+        query += ` AND t4.end_dttm is null`;
+
+      }
+
+      if (status !== undefined && status === 'N') {
+        query += ` AND t4.end_dttm is not null`;
+
+      }
       
       // date 조건
       if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
