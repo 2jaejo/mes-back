@@ -1339,13 +1339,15 @@ const apiModel = {
           , two.item_code 
           , ti.item_name 
           , twr.work_idx 
+          ,	twr.start_dttm
+          , twr.end_dttm
           , case 
-            WHEN twr.work_idx IS NULL THEN NULL
+            WHEN twr.work_idx IS NULL THEN ''
               WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
               WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
-              ELSE 'start'
+              ELSE ''
             END AS status
         FROM tb_process tp
         left join tb_common_code tcc on tp.process_type = tcc.code and tcc.group_code = 'cd011'
