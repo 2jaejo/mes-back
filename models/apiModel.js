@@ -1342,13 +1342,13 @@ const apiModel = {
           ,	twr.start_dttm
           , twr.end_dttm
           , case 
-            WHEN twr.work_idx IS NULL THEN ''
-              WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
-              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
-              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
-              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
-              ELSE ''
-            END AS status
+            WHEN twr.work_idx IS NULL THEN 'ready'
+            WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
+            ELSE ''
+          END AS status
         FROM tb_process tp
         left join tb_common_code tcc on tp.process_type = tcc.code and tcc.group_code = 'cd011'
         LEFT JOIN tb_work_order two ON tp.process_code = two.process_code 
@@ -1360,7 +1360,55 @@ const apiModel = {
         order by tp.process_code;
       `;
 
-      const result = await pool.query(query);
+      let query2 = `
+        select 
+          tp.idx as process_idx
+          , tp.process_code
+          , tp.process_name
+          , tp.process_type
+          , tp.use_yn
+          , two.idx
+          , two.item_code 
+          , two.worker_id 
+          , two.order_qty 
+          , two.start_date 
+          , two.start_time 
+          , two.end_date 
+          , two.end_time 
+          , two.status 
+          , tcc.code_name as process_type_name
+          , ti.item_name 
+          , twr.idx as result_idx
+          , twr.work_idx
+          , twr.start_dttm 
+          , twr.end_dttm 
+          , twr.result_qty 
+          , twr.defect_qty 
+          , ROUND(
+            EXTRACT(epoch FROM COALESCE(twr.end_dttm, now()) - twr.start_dttm) / 60
+          )::integer AS prod_min
+          , ROUND(
+            EXTRACT(epoch FROM (two.end_date::timestamp + two.end_time::time) - (two.start_date::timestamp + two.start_time::time)) / 60
+          )::integer AS total_min
+          , case 
+            WHEN ti.item_name is null and twr.work_idx IS NULL THEN ''
+            WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
+            ELSE ''
+          END AS status
+        from tb_process tp
+        left join tb_work_order two on tp.process_code = two.process_code
+        and two.start_date::timestamp <= now()
+        and two.end_date::timestamp + interval '1 day' >= now()
+        left join tb_common_code tcc on tp.process_type = tcc.code and tcc.group_code = 'cd011'
+        left join tb_item ti on two.item_code = ti.item_dotno 
+        left join tb_work_result twr on two.idx = twr.work_idx
+        order by tp.process_code
+      `;
+
+      const result = await pool.query(query2);
       return result.rows; 
 
     } catch (error) {
@@ -5295,7 +5343,56 @@ const apiModel = {
         ORDER BY tp.process_code ASC
       `;
 
-      const result = await pool.query(query, data);
+
+      let query2 = `
+        select 
+          tp.idx as process_idx
+          , tp.process_code
+          , tp.process_name
+          , tp.process_type
+          , tp.use_yn
+          , two.idx
+          , two.item_code 
+          , two.worker_id 
+          , two.order_qty 
+          , two.start_date 
+          , two.start_time 
+          , two.end_date 
+          , two.end_time 
+          , two.status 
+          , tcc.code_name as process_type_name
+          , ti.item_name 
+          , twr.idx as result_idx
+          , twr.work_idx
+          , twr.start_dttm 
+          , twr.end_dttm 
+          , twr.result_qty 
+          , twr.defect_qty 
+          , coalesce (ROUND(
+            EXTRACT(epoch FROM COALESCE(twr.end_dttm, now()) - twr.start_dttm) / 60
+          )::integer, 0) AS prod_min
+          , ROUND(
+            EXTRACT(epoch FROM (two.end_date::timestamp + two.end_time::time) - (two.start_date::timestamp + two.start_time::time)) / 60
+          )::integer AS total_min
+          , case 
+            WHEN twr.work_idx IS NULL THEN ''
+            WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
+            WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
+            ELSE ''
+          END AS status
+        from tb_work_order two 
+        left join tb_process tp on tp.process_code = two.process_code
+        left join tb_common_code tcc on tp.process_type = tcc.code and tcc.group_code = 'cd011'
+        left join tb_item ti on two.item_code = ti.item_dotno 
+        join tb_work_result twr on two.idx = twr.work_idx
+        where two.start_date::timestamp <= $1
+        and two.end_date::timestamp >= $1
+        order by tp.process_code
+      `;
+
+      const result = await pool.query(query2, data);
       return result.rows; 
 
     } catch (error) {
