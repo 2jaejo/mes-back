@@ -1708,11 +1708,61 @@ const apiService = {
 
 
 
+  // Check
+  getChkItem: async (params) =>{
+    try {
 
+      return await apiModel.getChkItem(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
+  addChkItem: async (params, name) => {
+    try {
 
+      return await apiModel.addChkItem(params, name);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
-  
+  delChkItem: async (params) =>{
+    try {
+
+      return await apiModel.delChkItem(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getChkProcess: async (params) =>{
+    try {
+
+      return await apiModel.getChkProcess(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addChkProcess: async (params, name) => {
+    try {
+
+      return await apiModel.addChkProcess(params, name);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delChkProcess: async (params) =>{
+    try {
+
+      return await apiModel.delChkProcess(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
 };
 
 export default apiService;

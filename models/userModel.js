@@ -5,7 +5,7 @@ const userModel = {
   getUsers: async (req) => {
     try {
       // 검색조건
-      const { user_id, user_nm } = req.body;
+      const { user_id, user_nm, grade } = req.body;
 
       // SQL 쿼리문
       let sql = `
@@ -38,7 +38,13 @@ const userModel = {
         paramIndex++;
       }
 
-      sql += ` order by idx desc`;
+      if (grade) {
+        sql += ` and grade <= $${paramIndex}`;
+        params.push(grade);
+        paramIndex++;
+      }
+
+      sql += ` order by input_dt desc`;
 
       const result = await pool.query(sql, params);
 

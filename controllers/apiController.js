@@ -1345,6 +1345,66 @@ const itemController = {
   },
 
 
+  // Check
+  getChkItem: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.getChkItem(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addChkItem: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.addChkItem(data, req.user.name);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delChkItem: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.delChkItem(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+  
+  getChkProcess: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.getChkProcess(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  addChkProcess: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.addChkProcess(data, req.user.name);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  delChkProcess: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.delChkProcess(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
 }
 
 export default itemController;

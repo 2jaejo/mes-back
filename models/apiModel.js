@@ -1,6 +1,6 @@
 import { set } from 'mongoose';
 import pool from '../config/db.js';
-import { sql } from 'googleapis/build/src/apis/sql/index.js';
+
 
 
 // prefix + YYMMDD + 다섯자리(updated_at 카운터 + 1)
@@ -4201,7 +4201,7 @@ const apiModel = {
           t1.idx
           , t1.sales_id
           , t1.item_dotno
-          , t2.item_name
+          , max(t2.item_name) as item_name
           , t1.quantity
           , t1.unit_price
           , t1.status
@@ -4215,11 +4215,14 @@ const apiModel = {
           , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
           , t1.created_by
           , t1.updated_by
-          , case when t3.idx is null then 'N' else 'Y' end as order_yn
+          , case when max(t3.idx) is null then 'N' else 'Y' end as pack_order_yn
+          , coalesce(sum(t4.result_qty), 0 ) as result_pack_cnt 
         FROM tb_sales_order_det t1
         left join tb_item t2 on t1.item_dotno = t2.item_dotno 
-        left join tb_work_order t3 on t1.sales_id = t3.sales_id
+        left join tb_work_order t3 on t1.sales_id = t3.sales_id and t3.process_code = 'RT401'
+        left join tb_work_result t4 on t3.work_id = t4.work_id and t3.idx = t4.work_idx 
         where t1.sales_id = $1
+        group by t1.idx
         order by t1.idx asc
       `;
 
@@ -4430,44 +4433,47 @@ const apiModel = {
   getWorkOrder: async (params) => {
     try {
  
-      const { start_date, end_date, item_code, item_name, work_id} = params;
+      const { start_date, end_date, item_code, item_name, work_id, status} = params;
       const data = [];
 
       let query = `
         SELECT 
-          t1.idx
-          , t1.sales_id
-          , t1.work_id
-          , t1.process_code
-          , t2.process_name 
-          , t1.item_code
-          , t3.item_name
-          , t1.worker_id
-          , t5.user_nm as worker_nm
-          , t1.order_qty
-          , t1.start_date
-          , t1.start_time
-          , t1.end_date
-          , t1.end_time
-          , t1.created_by
-          , t1.updated_by
-          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
-          , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
-          , t1.remark
-          , case 
-              WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
-              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
-              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
-              WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
-              ELSE ''
-            END AS status
-          , case WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN false ELSE true end as editable
-        FROM tb_work_order t1
-        left join tb_process t2 on t1.process_code = t2.process_code 
-        left join tb_item t3 on t1.item_code = t3.item_dotno
-        left join tb_work_result twr on t1.idx = twr.work_idx
-        left join tb_user t5 on t1.worker_id = t5.user_id
-        where 1=1
+          *
+        FROM (
+          SELECT 
+            t1.idx
+            , t1.sales_id
+            , t1.work_id
+            , t1.process_code
+            , t2.process_name 
+            , t1.item_code
+            , t3.item_name
+            , t1.worker_id
+            , t5.user_nm as worker_nm
+            , t1.order_qty
+            , t1.start_date
+            , t1.start_time
+            , t1.end_date
+            , t1.end_time
+            , t1.created_by
+            , t1.updated_by
+            , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+            , TO_CHAR(t1.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+            , t1.remark
+            , case 
+                WHEN twr.start_dttm IS NULL AND twr.end_dttm IS NULL THEN 'ready'
+                WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'Y' THEN 'pause'
+                WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NULL AND twr.pause = 'N' THEN 'start'
+                WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN 'end'
+                ELSE ''
+              END AS status
+            , case WHEN twr.start_dttm IS NOT NULL AND twr.end_dttm IS NOT NULL THEN false ELSE true end as editable
+          FROM tb_work_order t1
+          left join tb_process t2 on t1.process_code = t2.process_code 
+          left join tb_item t3 on t1.item_code = t3.item_dotno
+          left join tb_work_result twr on t1.idx = twr.work_idx
+          left join tb_user t5 on t1.worker_id = t5.user_id
+          where 1=1
       `;
       let idx = 1;
       
@@ -4478,6 +4484,7 @@ const apiModel = {
         data.push(end_date);
       }
 
+      
       // item_code 조건
       if (item_code !== undefined && item_code !== '') {
         query += ` AND t1.item_code ILIKE $${idx++}`;
@@ -4501,6 +4508,19 @@ const apiModel = {
         query += ` AND t1.work_id ILIKE $${idx++}`;
         data.push(`%${work_id}%`);
       }
+
+
+
+
+      // status 조건
+      if (status === '') {
+        query += ` ) sub WHERE sub.status <> 'end' `;
+      }
+      if (status !== undefined && status !== '') {
+        query += ` ) sub WHERE status ILIKE $${idx++}`;
+        data.push(`%${status}%`);
+      }
+
 
       query += ` ORDER BY created_at desc`;
 
@@ -4769,7 +4789,7 @@ const apiModel = {
           , t1.start_time
           , t1.end_date
           , t1.end_time
-          , concat(t1.start_date, ' ', t1.start_time, ' ~ ', t1.end_date, ' ', t1.end_time) as range
+          , concat(t1.start_date, ' ', t1.start_time, ' - ', t1.end_date, ' ', t1.end_time) as range
           , t4.idx 
           , t4.result_id 
           , TO_CHAR( t4.start_dttm, 'YYYY-MM-DD HH24:MI:SS') AS start_dttm
@@ -4811,7 +4831,7 @@ const apiModel = {
       
       // date 조건
       if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
-        query += ` AND t1.created_at BETWEEN $${idx++} AND $${idx++}`;
+        query += ` AND t4.created_at between ($${idx++}::date + interval '0 days') AND ($${idx++}::date + interval '1 days') `;
         data.push(start_date);
         data.push(end_date);
       }
@@ -5401,6 +5421,236 @@ const apiModel = {
   },
 
 
+  // Check
+  getChkItem: async (params) => {
+    try {
+      const { start_date, end_date, item_code, item_name } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.chk_date
+          , t1.chk_time
+          , t1.chk_item_code
+          , t2.item_name
+          , t1.chk_user
+          , t1.chk_remarks
+          , case when t1.chk_status = 'Y' then '합격' else '불합격' end as chk_status
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH:mm:ss') AS created_at
+          , t1.created_by
+        FROM tb_chk_item t1
+        left join tb_item t2 on t1.chk_item_code = t2.item_dotno
+        WHERE 1=1
+      `;
+      let idx = 1;
+
+      // date 조건
+      if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
+        query += ` AND t1.chk_date BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // item_code 조건
+      if (item_code !== undefined && item_code !== '') {
+        query += ` AND t1.chk_item_code ILIKE $${idx++}`;
+        data.push(`%${item_code}%`);
+      }
+
+      // item_name 조건
+      if (item_name !== undefined && item_name !== '') {
+        const terms = item_name.trim().split(/\s+/);
+        const conditions = terms.map(term => {
+          query += ` AND t2.item_name ILIKE $${idx++}`;
+          return `%${term}%`;
+        });
+        data.push(...conditions);
+      }
+
+      query += ` ORDER BY t1.created_at desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addChkItem: async (params, name) => {
+    try {
+      const tableName = 'tb_chk_item';
+
+      // 유효한 값만 필터링
+      const entries = Object.entries(params).filter(
+        ([_, value]) => value !== '' && value !== null && value !== undefined
+      );
+
+      const columns = entries.map(([key]) => key);
+      const values = entries.map(([_, value]) => value);
+      const placeholders = entries.map((_, idx) => `$${idx + 1}`);
+
+      const query = `
+        INSERT INTO ${tableName} ( 
+          ${columns.join(', ')}
+          , created_by  
+        ) VALUES (
+          ${placeholders.join(', ')}
+          , '${name}' 
+        );
+      `;
+
+      const result = await pool.query(query, values);
+      
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delChkItem: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await pool.query(`
+        DELETE FROM tb_chk_item
+        WHERE idx = ANY($1)
+      `, data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+
+  getChkProcess: async (params) => {
+    try {
+      const { start_date, end_date, item_code, item_name } = params;
+      const data = [];
+
+      let query = `
+        SELECT 
+          t1.idx
+          , t1.chk_date
+          , t1.chk_time
+          , t1.chk_item_code
+          , t2.item_name
+          , t1.chk_process_code
+          , t3.process_name
+          , t1.chk_remarks
+          , t1.temp_water
+          , t1.temp_die1
+          , t1.temp_die2
+          , t1.temp_barrel1
+          , t1.temp_barrel2
+          , t1.temp_barrel3
+          , t1.temp_barrel4
+          , t1.temp_barrel5
+          , t1.temp_barrel6
+          , t1.speed_screw
+          , t1.speed_out
+          , t1.speed_cut
+          , t1.interval_dies
+          , TO_CHAR(t1.created_at, 'YYYY-MM-DD HH:mm:ss') AS created_at
+          , t1.created_by
+        FROM tb_chk_process t1
+        left join tb_item t2 on t1.chk_item_code = t2.item_dotno
+        left join tb_process t3 on t1.chk_process_code = t3.process_code
+        WHERE 1=1
+      `;
+      let idx = 1;
+
+      // date 조건
+      if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
+        query += ` AND t1.chk_date BETWEEN $${idx++} AND $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // item_code 조건
+      if (item_code !== undefined && item_code !== '') {
+        query += ` AND t1.chk_item_code ILIKE $${idx++}`;
+        data.push(`%${item_code}%`);
+      }
+
+      // item_name 조건
+      if (item_name !== undefined && item_name !== '') {
+        const terms = item_name.trim().split(/\s+/);
+        const conditions = terms.map(term => {
+          query += ` AND t2.item_name ILIKE $${idx++}`;
+          return `%${term}%`;
+        });
+        data.push(...conditions);
+      }
+
+      query += ` ORDER BY t1.created_at desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addChkProcess: async (params, name) => {
+    try {
+      const tableName = 'tb_chk_process';
+
+      // 유효한 값만 필터링
+      const entries = Object.entries(params).filter(
+        ([_, value]) => value !== '' && value !== null && value !== undefined
+      );
+
+      const columns = entries.map(([key]) => key);
+      const values = entries.map(([_, value]) => value);
+      const placeholders = entries.map((_, idx) => `$${idx + 1}`);
+
+      const query = `
+        INSERT INTO ${tableName} ( 
+          ${columns.join(', ')}
+          , created_by  
+        ) VALUES (
+          ${placeholders.join(', ')}
+          , '${name}' 
+        );
+      `;
+
+      const result = await pool.query(query, values);
+      
+      return result.rows; 
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  delChkProcess: async (params) => {
+    try {
+      const arr = params;
+
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ message: '배열이 필요합니다.' });
+      }
+    
+      const arr_ids = arr.map(el => el.idx); // 필요한 키만 추출
+      const data = [arr_ids];
+
+      return await pool.query(`
+        DELETE FROM tb_chk_process
+        WHERE idx = ANY($1)
+      `, data);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
 };
 

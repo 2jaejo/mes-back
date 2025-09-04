@@ -47,8 +47,8 @@ const loginController = {
           a.*	
           , COALESCE(b.color, '#000000') as color 	
           , COALESCE(b.bg_color , '#ffffff') as bg_color 
-        FROM public.tb_user as a 
-        left join react.public.tb_theme b  on a.user_id = b.user_id 
+        FROM tb_user as a 
+        left join tb_theme b  on a.user_id = b.user_id 
         WHERE a.user_id = $1`
       , params);
 
