@@ -207,7 +207,7 @@ router.post('/addProductionLog', apiController.addProductionLog);
 router.post('/getReportProcess', apiController.getReportProcess);
 
 
-// check
+// Check
 router.post('/getChkItem', apiController.getChkItem);
 router.post('/addChkItem', apiController.addChkItem);
 router.post('/delChkItem', apiController.delChkItem);
@@ -217,6 +217,8 @@ router.post('/addChkProcess', apiController.addChkProcess);
 router.post('/delChkProcess', apiController.delChkProcess);
 
 
+// ProductionMonth
+router.post('/getProductionMonth', apiController.getProductionMonth);
 
 
 

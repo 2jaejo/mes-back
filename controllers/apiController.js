@@ -1405,6 +1405,30 @@ const itemController = {
       res.status(400).json({ message: error.message });
     }
   },
+
+
+  // ProductionMonth
+  getProductionMonth: async (req, res) => {
+    try {
+      const data = req.body;
+      const result = await apiService.getProductionMonth(data);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 export default itemController;

@@ -1436,6 +1436,26 @@ const apiModel = {
     }
   },
 
+  getProcess4: async () => {
+    try {
+ 
+      let query = `
+        select 
+          tp.* 
+        from tb_process tp 
+        where tp.use_yn = 'Y'
+        order by process_code asc
+
+      `;
+
+      const result = await pool.query(query);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   setProcess: async (params) => {
     try {
       const query = `
@@ -3021,32 +3041,32 @@ const apiModel = {
       let idx = 1;
       
       // date 조건
-      if (start_date !== '' && end_date !== '') {
-        query += ` AND t1.created_at BETWEEN $${idx++} AND $${idx++}`;
+      if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
+        query += ` AND to_char(t1.created_at, 'YYYY-MM-DD') BETWEEN $${idx++} AND $${idx++}`;
         data.push(start_date);
         data.push(end_date);
       }
 
       // raw_code 조건
-      if (raw_code !== '') {
+      if (raw_code !== '' && raw_code !== undefined) {
         query += ` AND t1.raw_code ILIKE $${idx++}`;
         data.push(`%${raw_code}%`);
       }
 
       // raw_name 조건
-      if (raw_name !== '') {
+      if (raw_name !== '' && raw_name !== undefined) {
         query += ` AND t2.raw_name ILIKE $${idx++}`;
         data.push(`%${raw_name}%`);
       }
 
       // receipt_id 조건
-      if (receipt_id !== '') {
+      if (receipt_id !== '' && receipt_id !== undefined) {
         query += ` AND t1.receipt_id ILIKE $${idx++}`;
         data.push(`%${receipt_id}%`);
       }
 
       // change_type 조건
-      if (change_type !== '') {
+      if (change_type !== '' && change_type !== undefined) {
         query += ` AND t1.change_type ILIKE $${idx++}`;
         data.push(`%${change_type}%`);
       }
@@ -4771,7 +4791,7 @@ const apiModel = {
     try {
  
 
-      const { start_date, end_date, item_code, item_name, work_id, status} = params;
+      const { start_date, end_date, item_code, item_name, work_id, status, process_code} = params;
       const data = [];
 
       let query = `
@@ -4834,6 +4854,12 @@ const apiModel = {
         query += ` AND t4.created_at between ($${idx++}::date + interval '0 days') AND ($${idx++}::date + interval '1 days') `;
         data.push(start_date);
         data.push(end_date);
+      }
+
+      // process_code 조건
+      if (process_code !== undefined && process_code !== '') {
+        query += ` AND t1.process_code ILIKE $${idx++}`;
+        data.push(`%${process_code}%`);
       }
 
       // item_code 조건
@@ -5037,9 +5063,11 @@ const apiModel = {
           INSERT INTO tb_work_result_log(
             result_id
             , change_qty
+            , created_by
           ) VALUES (
             $1
             , $2
+            , '${name}'
           )
           RETURNING *
         `;
@@ -5054,9 +5082,11 @@ const apiModel = {
           INSERT INTO tb_work_defect_log(
             result_id
             , change_qty
+            , created_by
           ) VALUES (
             $1
             , $2
+            , '${name}'
           )
           RETURNING *
         `;
@@ -5651,6 +5681,65 @@ const apiModel = {
       throw new Error(error.message);
     }
   },
+
+
+  // ProductionMonth
+  getProductionMonth: async (params) => {
+    try {
+      const { start_date, end_date, item_code, item_name } = params;
+      const data = [];
+
+      let query = `
+        select 
+          two.*
+          , twr.*
+          , tp.process_name 
+          , ti.item_name 
+        from tb_work_order two 
+        join tb_work_result twr on two.idx = twr.work_idx 
+        left join tb_process tp on two.process_code = tp.process_code 
+        left join tb_item ti on two.item_code = ti.item_dotno 
+        where 1 = 1  
+      `;
+
+      let idx = 1;
+
+      // date 조건
+      if (start_date !== '' && end_date !== '' && start_date !== undefined && end_date !== undefined) {
+        query += ` AND twr.start_dttm <= $${idx++} AND twr.end_dttm >= $${idx++}`;
+        data.push(start_date);
+        data.push(end_date);
+      }
+
+      // item_code 조건
+      if (item_code !== undefined && item_code !== '') {
+        query += ` AND twr.item_code ILIKE $${idx++}`;
+        data.push(`%${item_code}%`);
+      }
+
+      // item_name 조건
+      if (item_name !== undefined && item_name !== '') {
+        const terms = item_name.trim().split(/\s+/);
+        const conditions = terms.map(term => {
+          query += ` AND ti.item_name ILIKE $${idx++}`;
+          return `%${term}%`;
+        });
+        data.push(...conditions);
+      }
+
+      query += ` ORDER BY twr.created_at desc`;
+
+      const result = await pool.query(query, data);
+      return result.rows; 
+
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+
+
 
 };
 

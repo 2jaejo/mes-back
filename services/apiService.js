@@ -618,6 +618,9 @@ const apiService = {
       if(type !== undefined && type === 'router'){
         return await apiModel.getProcess3();
       }
+      if(type !== undefined && type === 'list'){
+        return await apiModel.getProcess4();
+      }
       return await apiModel.getProcess(params);
     } catch (error) {
       throw new Error(error.message);
@@ -1762,6 +1765,23 @@ const apiService = {
       throw new Error(error.message);
     }
   },
+
+
+
+
+  // ProductionMonth
+  getProductionMonth: async (params) =>{
+    try {
+
+      return await apiModel.getProductionMonth(params);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+
+
+
 
 };
 
